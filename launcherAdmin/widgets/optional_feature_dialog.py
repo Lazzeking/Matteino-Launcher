@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
 class OptionalFeatureDialog(QDialog):
     def __init__(self, feature=None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Optional Feature")
+        self.setWindowTitle(self.tr("Optional Feature"))
         self.setMinimumHeight(300)
         self.setMinimumWidth(650)
 
@@ -21,10 +21,10 @@ class OptionalFeatureDialog(QDialog):
         self.default_input = QCheckBox()
         self.include_input = QLineEdit()
 
-        layout.addRow("Name:", self.name_input)
-        layout.addRow("Description:", self.description_input)
-        layout.addRow("Recommendation:", self.recommendation_input)
-        layout.addRow("Selected by Default:", self.default_input)
+        layout.addRow(self.tr("Name:"), self.name_input)
+        layout.addRow(self.tr("Description:"), self.description_input)
+        layout.addRow(self.tr("Recommendation:"), self.recommendation_input)
+        layout.addRow(self.tr("Selected by Default:"), self.default_input)
 
         self.tabs = QTabWidget()
 
@@ -32,7 +32,7 @@ class OptionalFeatureDialog(QDialog):
         self.local_tab = QWidget()
         local_layout = QVBoxLayout()
         self.include_input = QLineEdit()
-        local_layout.addWidget(QLabel("Local file globs (comma-separated):"))
+        local_layout.addWidget(QLabel(self.tr("Local file globs (comma-separated):")))
         local_layout.addWidget(self.include_input)
         self.local_tab.setLayout(local_layout)
 
@@ -41,20 +41,20 @@ class OptionalFeatureDialog(QDialog):
         remote_layout = QFormLayout()
         self.remote_url_input = QLineEdit()
         self.remote_target_input = QLineEdit()
-        remote_layout.addRow("Remote URL:", self.remote_url_input)
-        remote_layout.addRow("Target Path (optional):",
+        remote_layout.addRow(self.tr("Remote URL:"), self.remote_url_input)
+        remote_layout.addRow(self.tr("Target Path (optional):"),
                              self.remote_target_input)
         self.remote_tab.setLayout(remote_layout)
 
         # === Add tabs to widget ===
-        self.tabs.addTab(self.local_tab, "Local Files")
-        self.tabs.addTab(self.remote_tab, "Remote File")
+        self.tabs.addTab(self.local_tab, self.tr("Local Files"))
+        self.tabs.addTab(self.remote_tab, self.tr("Remote File"))
 
-        layout.addRow("Optional Feature Type:", self.tabs)
+        layout.addRow(self.tr("Optional Feature Type:"), self.tabs)
 
         button_layout = QHBoxLayout()
-        ok_btn = QPushButton("OK")
-        cancel_btn = QPushButton("Cancel")
+        ok_btn = QPushButton(self.tr("OK"))
+        cancel_btn = QPushButton(self.tr("Cancel"))
         ok_btn.clicked.connect(self.accept)
         cancel_btn.clicked.connect(self.reject)
         button_layout.addWidget(ok_btn)

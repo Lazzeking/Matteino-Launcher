@@ -78,6 +78,19 @@ def load_config(app: str) -> dict:
     return base
 
 
+def save_user_config(app: str, override: dict) -> None:
+    """
+    Merge override into the user config file and write it back.
+    Use for persisting UI choices (e.g. translations). Does not touch defaults.
+    """
+    user_path = paths.user_config_path(app)
+    current = _load_json(user_path) if os.path.isfile(user_path) else {}
+    merged = _deep_merge(current, override)
+    os.makedirs(os.path.dirname(user_path), exist_ok=True)
+    with open(user_path, "w", encoding="utf-8") as f:
+        json.dump(merged, f, indent=2)
+
+
 def get_user_paths(app: str) -> dict:
     """
     Return standard paths the app should use (all under writable_dir).

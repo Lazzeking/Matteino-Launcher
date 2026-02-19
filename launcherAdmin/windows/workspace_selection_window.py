@@ -1,17 +1,20 @@
 # windows/workspace_selection_window.py
 
 import os
+import sys
 import json
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QListWidget, QFileDialog, QMessageBox, QLabel
+    QPushButton, QListWidget, QFileDialog, QMessageBox, QLabel, QComboBox
 )
 from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtCore import QSize, Qt
 
 from src.common.version import __version__ as LAUNCHER_VERSION
 from src.common.about_dialog import AboutDialog
+from src.common import config as common_config
+from src.common import translations as common_translations
 from windows.workspace_window import WorkspaceWindow
 
 
@@ -87,6 +90,20 @@ class WorkspaceSelectionWindow(QMainWindow):
         self.btn_remove.clicked.connect(self.remove_workspace)
         self.left_panel.addWidget(self.btn_remove)
 
+        # Language selector
+        self.left_panel.addWidget(QLabel(self.tr("Language:")))
+        self.language_combo = QComboBox()
+        self._language_choices = common_translations.get_available_languages("admin")
+        current_file = common_translations.get_current_translation_file(self.config)
+        self.language_combo.blockSignals(True)
+        for i, choice in enumerate(self._language_choices):
+            self.language_combo.addItem(choice["name"], choice)
+            if choice["file"] == current_file:
+                self.language_combo.setCurrentIndex(i)
+        self.language_combo.blockSignals(False)
+        self.language_combo.currentIndexChanged.connect(self._on_language_changed)
+        self.left_panel.addWidget(self.language_combo)
+
         # Launcher version (click to open About / credits and licenses)
         version_btn = QPushButton(self.tr("Launcher v{0}").format(LAUNCHER_VERSION))
         version_btn.setFlat(True)
@@ -145,6 +162,18 @@ class WorkspaceSelectionWindow(QMainWindow):
 
     def on_selection_change(self):
         self.btn_remove.setEnabled(self.workspace_list.currentRow() >= 0)
+
+    def _on_language_changed(self, index: int):
+        if index < 0 or index >= len(self._language_choices):
+            return
+        choice = self._language_choices[index]
+        if choice["id"] == "":
+            trans = {"enabled": False, "file": "", "locale": "en"}
+        else:
+            trans = {"enabled": True, "file": choice["file"], "locale": choice["id"]}
+        common_config.save_user_config("admin", {"translations": trans})
+        # Restart so the new translator is loaded
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
     def show_about(self):
         dialog = AboutDialog(

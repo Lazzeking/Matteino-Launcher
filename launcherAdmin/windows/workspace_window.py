@@ -4,6 +4,7 @@ from datetime import datetime
 import hashlib
 from io import BytesIO
 import os
+import sys
 from glob import glob
 import json
 import re
@@ -24,6 +25,8 @@ import minecraft_launcher_lib
 
 from src.common.version import __version__ as LAUNCHER_VERSION
 from src.common.about_dialog import AboutDialog
+from src.common import config as common_config
+from src.common import translations as common_translations
 from widgets.mod_entry_widget import ModEntryWidget
 from workers.versions_loader_worker import VersionsLoaderWorker
 from widgets.dependency_selection_dialog import DependencySelectionDialog
@@ -95,9 +98,9 @@ class WorkspaceWindow(QMainWindow):
         selector_layout.addWidget(release_btn)
 
         # === Open Folder Button ===
-        open_folder_btn = QPushButton("Open Folder")
+        open_folder_btn = QPushButton(self.tr("Open Folder"))
         open_folder_btn.setFixedWidth(120)
-        open_folder_btn.setToolTip("Open the pack's workspace folder")
+        open_folder_btn.setToolTip(self.tr("Open the pack's workspace folder"))
         open_folder_btn.clicked.connect(self.open_workspace_folder)
         selector_layout.addWidget(open_folder_btn)
 
@@ -204,8 +207,8 @@ class WorkspaceWindow(QMainWindow):
 
         folder_path = os.path.join(self.workspace_path)
         if not os.path.isdir(folder_path):
-            QMessageBox.warning(self, "Folder Not Found",
-                                f"No folder found for {current_pack}")
+            QMessageBox.warning(self, self.tr("Folder Not Found"),
+                                self.tr("No folder found for {current_pack}").format(current_pack=current_pack))
             return
 
         # Open folder
@@ -542,7 +545,7 @@ class WorkspaceWindow(QMainWindow):
             self.workspace_path, f"{current_pack_name}.json")
 
         if not os.path.exists(pack_path):
-            QMessageBox.warning(self, "Errore", "Pack JSON non trovato.")
+            QMessageBox.warning(self, self.tr("Error"), self.tr("Pack JSON file not found."))
             return
 
         with open(pack_path, "r") as f:
@@ -553,7 +556,7 @@ class WorkspaceWindow(QMainWindow):
         try:
             self.create_mrpack_file(pack_data, mrpack_output)
             QMessageBox.information(
-                self, "Successo", f"Creato: {mrpack_output}")
+                self, self.tr("Success"), self.tr("Created: {path}").format(path=mrpack_output))
 
             try:
                 mrpack_information = minecraft_launcher_lib.mrpack.get_mrpack_information(
@@ -610,7 +613,7 @@ class WorkspaceWindow(QMainWindow):
 
         except Exception as e:
             QMessageBox.critical(
-                self, "Errore", f"Errore durante la creazione del .mrpack:\n{e}")
+                self, self.tr("Error"), self.tr("Error while creating the .mrpack file:\n{e}").format(e=e))
 
     def reload_selected_pack(self):
         confirm = QMessageBox.question(
@@ -783,7 +786,7 @@ class WorkspaceWindow(QMainWindow):
         layout.addWidget(self.scroll_area)
 
     def select_java_path(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Select Java Executable")
+        path, _ = QFileDialog.getOpenFileName(self, self.tr("Select Java Executable"))
         if path:
             self.java_path_input.setText(path)
 
@@ -813,16 +816,17 @@ class WorkspaceWindow(QMainWindow):
         ).setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.optional_features_table.setWordWrap(True)
         self.optional_features_table.setHorizontalHeaderLabels([
-            "Name", "Description", "Recommendation", "Default?", "Source", "Target", "Type"
+            self.tr("Name"), self.tr("Description"), self.tr("Recommendation"),
+            self.tr("Default?"), self.tr("Source"), self.tr("Target"), self.tr("Type")
         ])
         self.optional_features_table.setSelectionBehavior(
             QAbstractItemView.SelectionBehavior.SelectRows)
         layout.addWidget(self.optional_features_table)
 
         btn_layout = QHBoxLayout()
-        add_btn = QPushButton("Add")
-        edit_btn = QPushButton("Edit")
-        remove_btn = QPushButton("Remove")
+        add_btn = QPushButton(self.tr("Add"))
+        edit_btn = QPushButton(self.tr("Edit"))
+        remove_btn = QPushButton(self.tr("Remove"))
 
         add_btn.clicked.connect(self.add_optional_feature)
         edit_btn.clicked.connect(self.edit_optional_feature)
@@ -851,12 +855,12 @@ class WorkspaceWindow(QMainWindow):
                 else:
                     src = inc.get("source", "")
                     tgt = inc.get("target", src)
-                rows.append(("LOCAL", src, tgt))
+                rows.append((self.tr("Local"), src, tgt))
 
             for rem in remotes:
                 src = rem.get("url", "")
                 tgt = rem.get("target", "")
-                rows.append(("REMOTE", src, tgt))
+                rows.append((self.tr("Remote"), src, tgt))
 
             # Create a row in the table for each file entry
             for typ, src, tgt in rows:
@@ -947,21 +951,34 @@ class WorkspaceWindow(QMainWindow):
         # === JVM Args ===
         self.jvm_args_input = QLineEdit()
 
+        # === Language (launcher UI) ===
+        self._language_choices = common_translations.get_available_languages("admin")
+        current_file = common_translations.get_current_translation_file(self.config)
+        self.language_combo = QComboBox()
+        self.language_combo.blockSignals(True)
+        for i, choice in enumerate(self._language_choices):
+            self.language_combo.addItem(choice["name"], choice)
+            if choice["file"] == current_file:
+                self.language_combo.setCurrentIndex(i)
+        self.language_combo.blockSignals(False)
+        self.language_combo.currentIndexChanged.connect(self._on_language_changed)
+        layout.addRow(self.tr("Language:"), self.language_combo)
+
         # === Save Button ===
         save_btn = QPushButton(self.tr("Save Settings"))
         save_btn.clicked.connect(self.save_launcher_settings)
 
         # === Add to Layout ===
-        layout.addRow("Min RAM:", self.min_ram_input)
-        layout.addRow("Max RAM:", self.max_ram_input)
-        layout.addRow("Java Path:", java_path_layout)
-        layout.addRow("JVM Args:", self.jvm_args_input)
+        layout.addRow(self.tr("Min RAM:"), self.min_ram_input)
+        layout.addRow(self.tr("Max RAM:"), self.max_ram_input)
+        layout.addRow(self.tr("Java Path:"), java_path_layout)
+        layout.addRow(self.tr("JVM Args:"), self.jvm_args_input)
         layout.addRow(save_btn)
 
     def save_launcher_settings(self):
         if not hasattr(self, "current_pack_data"):
             QMessageBox.warning(
-                self, "No Pack", "No modpack is currently loaded.")
+                self, self.tr("No Pack"), self.tr("No modpack is currently loaded."))
             return
 
         self.current_pack_data["settings"] = {
@@ -976,8 +993,19 @@ class WorkspaceWindow(QMainWindow):
         with open(pack_file, "w") as f:
             json.dump(self.current_pack_data, f, indent=4)
 
-        QMessageBox.information(self, "Settings Saved",
-                                "Launcher settings saved successfully.")
+        QMessageBox.information(self, self.tr("Settings Saved"),
+                                self.tr("Launcher settings saved successfully."))
+
+    def _on_language_changed(self, index: int):
+        if index < 0 or index >= len(self._language_choices):
+            return
+        choice = self._language_choices[index]
+        if choice["id"] == "":
+            trans = {"enabled": False, "file": "", "locale": "en"}
+        else:
+            trans = {"enabled": True, "file": choice["file"], "locale": choice["id"]}
+        common_config.save_user_config("admin", {"translations": trans})
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
     def save_pack_info(self):
         name = self.name_field.text().strip()
@@ -1201,9 +1229,9 @@ class WorkspaceWindow(QMainWindow):
 
     def start_bulk_import(self, file_path):
         self.progress_dialog = QProgressDialog(
-            "Importing mods...", "Cancel", 0, 100, self
+            self.tr("Importing mods..."), self.tr("Cancel"), 0, 100, self
         )
-        self.progress_dialog.setWindowTitle("Bulk Import")
+        self.progress_dialog.setWindowTitle(self.tr("Bulk Import"))
         self.progress_dialog.setWindowModality(
             Qt.WindowModality.ApplicationModal)
         self.progress_dialog.setMinimumDuration(0)  # Show immediately
@@ -1219,7 +1247,7 @@ class WorkspaceWindow(QMainWindow):
         self.worker.finished.connect(self.thread.quit)
         self.worker.finished.connect(self.progress_dialog.close)
         self.worker.error.connect(
-            lambda msg: QMessageBox.critical(self, "Error", msg))
+            lambda msg: QMessageBox.critical(self, self.tr("Error"), msg))
         self.progress_dialog.canceled.connect(self.worker.stop)
 
         # Thread lifecycle
@@ -1233,7 +1261,7 @@ class WorkspaceWindow(QMainWindow):
 
     def handle_add_mod_bulk(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Select bulk file", "")
+            self, self.tr("Select bulk file"), "")
         if not file_path:
             return
         self.start_bulk_import(file_path)
@@ -1275,7 +1303,7 @@ class WorkspaceWindow(QMainWindow):
             if not mc_version:
                 if not bulk_mode:
                     QMessageBox.warning(
-                        self, "Minecraft mancante", "Devi selezionare una versione di Minecraft prima.")
+                        self, self.tr("Minecraft version missing"), self.tr("You need to select a Minecraft version first."))
                 return
 
             parts = url.strip("/").split("/")
@@ -1287,7 +1315,7 @@ class WorkspaceWindow(QMainWindow):
             # CASE 1: Direct CDN
             if "cdn.modrinth.com" in url:
                 if len(parts) < 7:
-                    raise ValueError("URL CDN non valido.")
+                    raise ValueError(self.tr("Invalid CDN URL."))
                 project_id = parts[4]
                 if project_id in already_added:
                     print(f"Skipping already-added CDN mod: {project_id}")
@@ -1327,10 +1355,10 @@ class WorkspaceWindow(QMainWindow):
                 ]
                 if not compatible_versions:
                     raise ValueError(
-                        f"Nessuna versione compatibile trovata per Minecraft {mc_version} e {mod_loader}.")
+                        self.tr("No compatible version found for Minecraft {mc_version} and {mod_loader}.").format(mc_version=mc_version, mod_loader=mod_loader))
                 version_data = compatible_versions[0]
             else:
-                raise ValueError("URL Modrinth non riconosciuto.")
+                raise ValueError(self.tr("Unrecognized Modrinth URL."))
 
             already_added.add(project_id)
 
@@ -1421,7 +1449,7 @@ class WorkspaceWindow(QMainWindow):
 
             file_info = version_data['files'][0]
             mod_entry = {
-                "title": project_data.get("title", "Mod sconosciuta"),
+                "title": project_data.get("title", self.tr("Unknown mod")),
                 "description": project_data.get("description", ""),
                 "url": f"https://modrinth.com/mod/{project_data.get('slug')}",
                 "icon_url": project_data.get("icon_url", ""),
@@ -1444,12 +1472,12 @@ class WorkspaceWindow(QMainWindow):
             self.render_mod_list()
             if not bulk_mode and not self.suppress_success_messages:
                 QMessageBox.information(
-                    self, "Successo", f"Mod '{mod_entry['title']}' aggiunta con successo.")
+                    self, self.tr("Success"), self.tr("Mod '{title}' added successfully.").format(title=mod_entry['title']))
 
         except Exception as e:
             if not bulk_mode:
                 QMessageBox.critical(
-                    self, "Errore", f"Errore durante l'aggiunta da Modrinth:\n{e}")
+                    self, self.tr("Error"), self.tr("Error while adding mod from Modrinth:\n{e}").format(e=e))
             else:
                 print(f"[Bulk] Modrinth error: {e}")
 

@@ -1,5 +1,9 @@
 # Matteino Launcher
 
+<p align="center">
+  <img src="launcherUser/resources/images/matteinocraft_mc_logo.png" alt="Matteino Launcher" width="128" />
+</p>
+
 Open-source modded Minecraft launcher. Two applications share this repository: the **user launcher** (players: install packs, manage accounts, launch the game) and the **admin launcher** (pack authors: manage workspaces, mod lists, and optional features).
 
 ## Features

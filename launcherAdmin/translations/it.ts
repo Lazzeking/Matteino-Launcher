@@ -112,6 +112,14 @@ Minecraft chiuso.</translation>
         <translation>Matteinocraft Launcher - Admin - Seleziona workspace</translation>
     </message>
     <message>
+        <source>Matteino Launcher - Admin - Select workspace</source>
+        <translation>Matteino Launcher - Admin - Seleziona workspace</translation>
+    </message>
+    <message>
+        <source>Language:</source>
+        <translation>Lingua:</translation>
+    </message>
+    <message>
         <location filename="../windows/workspace_selection_window.py" line="58"/>
         <source>Logo not found</source>
         <translation>Logo non trovato</translation>
@@ -563,6 +571,174 @@ resourcepacks/example.zip</translation>
         <translation>Errore nel caricamento delle versioni di Forge: {e}</translation>
     </message>
     <message>
+        <source>Open the pack&apos;s workspace folder</source>
+        <translation>Apri la cartella del workspace del pack</translation>
+    </message>
+    <message>
+        <source>Open Folder</source>
+        <translation>Apri cartella</translation>
+    </message>
+    <message>
+        <source>Folder Not Found</source>
+        <translation>Cartella non trovata</translation>
+    </message>
+    <message>
+        <source>No folder found for {current_pack}</source>
+        <translation>Nessuna cartella trovata per {current_pack}</translation>
+    </message>
+    <message>
+        <source>Pack JSON file not found.</source>
+        <translation>File JSON del pack non trovato.</translation>
+    </message>
+    <message>
+        <source>Success</source>
+        <translation>Successo</translation>
+    </message>
+    <message>
+        <source>Created: {path}</source>
+        <translation>Creato: {path}</translation>
+    </message>
+    <message>
+        <source>Error while creating the .mrpack file:
+{e}</source>
+        <translation>Errore durante la creazione del file .mrpack:
+{e}</translation>
+    </message>
+    <message>
+        <source>No Pack</source>
+        <translation>Nessun pack</translation>
+    </message>
+    <message>
+        <source>No modpack is currently loaded.</source>
+        <translation>Nessun modpack è attualmente caricato.</translation>
+    </message>
+    <message>
+        <source>Settings Saved</source>
+        <translation>Impostazioni salvate</translation>
+    </message>
+    <message>
+        <source>Launcher settings saved successfully.</source>
+        <translation>Impostazioni del launcher salvate correttamente.</translation>
+    </message>
+    <message>
+        <source>Language:</source>
+        <translation>Lingua:</translation>
+    </message>
+    <message>
+        <source>Min RAM:</source>
+        <translation>RAM min:</translation>
+    </message>
+    <message>
+        <source>Max RAM:</source>
+        <translation>RAM max:</translation>
+    </message>
+    <message>
+        <source>Java Path:</source>
+        <translation>Percorso Java:</translation>
+    </message>
+    <message>
+        <source>JVM Args:</source>
+        <translation>Argomenti JVM:</translation>
+    </message>
+    <message>
+        <source>Importing mods...</source>
+        <translation>Importazione mod in corso...</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annulla</translation>
+    </message>
+    <message>
+        <source>Bulk Import</source>
+        <translation>Importazione multipla</translation>
+    </message>
+    <message>
+        <source>Select bulk file</source>
+        <translation>Seleziona file per importazione multipla</translation>
+    </message>
+    <message>
+        <source>You need to select a Minecraft version first.</source>
+        <translation>Devi prima selezionare una versione di Minecraft.</translation>
+    </message>
+    <message>
+        <source>Invalid CDN URL.</source>
+        <translation>URL CDN non valido.</translation>
+    </message>
+    <message>
+        <source>Unrecognized Modrinth URL.</source>
+        <translation>URL Modrinth non riconosciuto.</translation>
+    </message>
+    <message>
+        <source>No compatible version found for Minecraft {mc_version} and {mod_loader}.</source>
+        <translation>Nessuna versione compatibile trovata per Minecraft {mc_version} e {mod_loader}.</translation>
+    </message>
+    <message>
+        <source>Mod &apos;{title}&apos; added successfully.</source>
+        <translation>Mod &apos;{title}&apos; aggiunta con successo.</translation>
+    </message>
+    <message>
+        <source>Error while adding mod from Modrinth:
+{e}</source>
+        <translation>Errore durante l&apos;aggiunta della mod da Modrinth:
+{e}</translation>
+    </message>
+    <message>
+        <source>Unknown mod</source>
+        <translation>Mod sconosciuta</translation>
+    </message>
+    <message>
+        <source>Name</source>
+        <translation>Nome</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>Descrizione</translation>
+    </message>
+    <message>
+        <source>Recommendation</source>
+        <translation>Raccomandazione</translation>
+    </message>
+    <message>
+        <source>Default?</source>
+        <translation>Default?</translation>
+    </message>
+    <message>
+        <source>Source</source>
+        <translation>Origine</translation>
+    </message>
+    <message>
+        <source>Target</source>
+        <translation>Destinazione</translation>
+    </message>
+    <message>
+        <source>Type</source>
+        <translation>Tipo</translation>
+    </message>
+    <message>
+        <source>Add</source>
+        <translation>Aggiungi</translation>
+    </message>
+    <message>
+        <source>Edit</source>
+        <translation>Modifica</translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation>Rimuovi</translation>
+    </message>
+    <message>
+        <source>Local</source>
+        <translation>Locale</translation>
+    </message>
+    <message>
+        <source>Remote</source>
+        <translation>Remoto</translation>
+    </message>
+    <message>
+        <source>Select Java Executable</source>
+        <translation>Seleziona eseguibile Java</translation>
+    </message>
+    <message>
         <source>Pack name</source>
         <translation type="vanished">Nome del pack</translation>
     </message>
@@ -615,6 +791,61 @@ resourcepacks/example.zip</translation>
 {e}</source>
         <translation type="vanished">Errore nella gestione della mod di Curseforge:
 {e}</translation>
+    </message>
+</context>
+<context>
+    <name>OptionalFeatureDialog</name>
+    <message>
+        <source>Optional Feature</source>
+        <translation>Funzionalità opzionale</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation>Nome:</translation>
+    </message>
+    <message>
+        <source>Description:</source>
+        <translation>Descrizione:</translation>
+    </message>
+    <message>
+        <source>Recommendation:</source>
+        <translation>Raccomandazione:</translation>
+    </message>
+    <message>
+        <source>Selected by Default:</source>
+        <translation>Selezionato di default:</translation>
+    </message>
+    <message>
+        <source>Local file globs (comma-separated):</source>
+        <translation>Pattern di file locali (separati da virgola):</translation>
+    </message>
+    <message>
+        <source>Remote URL:</source>
+        <translation>URL remoto:</translation>
+    </message>
+    <message>
+        <source>Target Path (optional):</source>
+        <translation>Percorso di destinazione (opzionale):</translation>
+    </message>
+    <message>
+        <source>Local Files</source>
+        <translation>File locali</translation>
+    </message>
+    <message>
+        <source>Remote File</source>
+        <translation>File remoto</translation>
+    </message>
+    <message>
+        <source>Optional Feature Type:</source>
+        <translation>Tipo di funzionalità opzionale:</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Annulla</translation>
     </message>
 </context>
 </TS>
