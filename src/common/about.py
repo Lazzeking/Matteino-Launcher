@@ -9,7 +9,7 @@ from src.common import paths
 from src.common.version import __version__
 
 # Default repo URL; set to "" to hide the source link in the template
-REPO_URL = "https://github.com/matteinocraft/LauncherPython-v2"
+REPO_URL = "https://github.com/Lazzeking/Matteino-Launcher"
 
 _ABOUT_HTML_PATH = os.path.join(paths.base_dir(), "resources", "about.html")
 
