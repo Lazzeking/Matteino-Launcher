@@ -1,0 +1,43 @@
+# Do not commit secrets or local credentials
+*.local.json
+admin.config.json
+user.config.json
+config/local/
+.env
+.env.local
+*.secret.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+
+# Build / distribution
+build/
+dist/
+*.spec
+*.manifest
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Launcher runtime cache (icons, etc.)
+.launcher_cache/
+
+# Launcher runtime (accounts, packages, logs, downloaded packs)
+launcherUser/packs/
+launcherUser/resources/accounts.json
+launcherUser/resources/packages.json
+launcherUser/logs/

@@ -1,0 +1,18 @@
+<div class="close-row">
+  <p id="countdown">You can close this tab in 4 seconds...</p>
+</div>
+<script>
+  (function() {
+    var el = document.getElementById('countdown');
+    var n = 4;
+    var t = setInterval(function() {
+      n--;
+      if (n > 0) {
+        el.textContent = 'You can close this tab in ' + n + ' second' + (n === 1 ? '' : 's') + '...';
+      } else {
+        clearInterval(t);
+        el.textContent = 'You can close this tab now.';
+      }
+    }, 1000);
+  })();
+</script>

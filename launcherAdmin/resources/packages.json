@@ -1,0 +1,11 @@
+{
+    "packages": [
+        {
+            "name": "matteinocraft",
+            "title": "Matteinocraft Revived 2.0",
+            "versionId": "matteinocraft20250806083701",
+            "priority": 0,
+            "location": "matteinocraft.json"
+        }
+    ]
+}
