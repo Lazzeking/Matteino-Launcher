@@ -93,7 +93,7 @@ The workflow [`.github/workflows/build-release.yml`](.github/workflows/build-rel
 On your machine, use the **distribute script** to combine the downloaded exes with your custom files into a folder and zip to ship:
 
 1. Download the artifact for the platform you need from Actions and **unzip into `dist/`** (so `dist/` contains the two executables).
-2. Put your custom files in **`distribution/`** — config overrides (`user.config.json`, `admin.config.json`), run scripts (`run.sh`, `Run Launcher.bat`, etc.), images, README, whatever you want next to the exe.
+2. Put your custom files in **`distribution/`** — or run **`python scripts/fill_distribution.py`** to copy your current dev config and referenced assets (logos, icons, translations, etc.) into `distribution/` automatically.
 3. Run: **`./scripts/distribute.sh [platform]`** (e.g. `./scripts/distribute.sh windows`). This creates `release-<platform>/` and `release-<platform>.zip` with the exes plus everything from `distribution/`.
 
 See [`distribution/README.md`](distribution/README.md) for what to put in `distribution/`.

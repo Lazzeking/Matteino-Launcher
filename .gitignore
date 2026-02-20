@@ -21,6 +21,11 @@ ENV/
 build/
 dist/
 *.manifest
+release/
+release-*
+release.zip
+distribution/*
+!distribution/README.md
 
 # IDE
 .idea/

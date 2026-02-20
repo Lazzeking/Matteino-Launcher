@@ -11,4 +11,4 @@ Use it for files you want next to the launcher when you ship:
 
 **Workflow:** GitHub Actions builds default executables only (no custom files). You download the artifact for your platform, unzip into `dist/`, put your custom files in `distribution/`, then run `./scripts/distribute.sh [platform]` to get a folder and zip ready to ship.
 
-This folder can be empty; add only what you need.
+**Auto-fill from your dev setup:** Run `python scripts/fill_distribution.py` to copy your current config files and any assets they reference (logos, icons, translations, etc.) into `distribution/`. Then run the distribute script as above. Config may contain secrets—do not commit `distribution/` if it does.
