@@ -1,16 +1,17 @@
 # PyInstaller spec for Matteino Launcher (user)
 # Run from project root: pyinstaller matteino_user.spec
-# Executable name and icon: user.config.json (if present) overrides config/defaults/user.default.json.
+# Executable name and icon: launcher_config/user.config.json (if present) overrides launcher_config/defaults/user.default.json.
 
 import json
 import os
 import re
 
 _spec_dir = os.path.dirname(os.path.abspath(SPEC))
-with open(os.path.join(_spec_dir, 'config/defaults/user.default.json'), 'r', encoding='utf-8') as f:
+_defaults_dir = os.path.join(_spec_dir, 'launcher_config', 'defaults')
+with open(os.path.join(_defaults_dir, 'user.default.json'), 'r', encoding='utf-8') as f:
     _cfg = json.load(f)
 _user_cfg_path = None
-for _path in (os.path.join(_spec_dir, 'user.config.json'), os.path.join(_spec_dir, 'config/user.config.json')):
+for _path in (os.path.join(_spec_dir, 'launcher_config', 'user.config.json'), os.path.join(_spec_dir, 'user.config.json')):
     if os.path.isfile(_path):
         with open(_path, 'r', encoding='utf-8') as f:
             _cfg.update(json.load(f))
@@ -32,19 +33,19 @@ if not os.path.isfile(_icon_abs) and _icon_rel.endswith('.png'):
             break
 EXE_ICON_USER = _icon_abs if os.path.isfile(_icon_abs) else None
 
-# Data files: defaults + packager config (shipped with exe) + custom resources from config + auth templates
-config_defaults = 'config/defaults'
+# Data files: defaults + packager config (shipped with exe) + custom resources + auth templates
+launcher_config = 'launcher_config'
 user_images = 'launcherUser/resources/images'
 resources_about = 'resources/about.html'
 auth_templates = 'launcherUser/auth/templates'
 datas_user = [
-    (os.path.join(_spec_dir, f'{config_defaults}/user.default.json'), config_defaults),
+    (os.path.join(_spec_dir, launcher_config, 'defaults', 'user.default.json'), os.path.join(launcher_config, 'defaults')),
     (os.path.join(_spec_dir, resources_about), 'resources'),
     (os.path.join(_spec_dir, user_images), user_images),
     (os.path.join(_spec_dir, auth_templates), auth_templates),
 ]
 if _user_cfg_path:
-    datas_user.append((_user_cfg_path, 'config'))
+    datas_user.append((_user_cfg_path, launcher_config))
 # Bundle custom logo/icon/loading image from config if they exist (relative paths only)
 for _key in ('logo_path', 'icon_path', 'loading_image_path'):
     _rel = _cfg.get(_key)

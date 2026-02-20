@@ -768,11 +768,14 @@ class WorkspaceWindow(QMainWindow):
         self.add_mod_button.clicked.connect(self.handle_add_mod)
         self.add_mod_bulk_button = QPushButton(self.tr("Add mods..."))
         self.add_mod_bulk_button.clicked.connect(self.handle_add_mod_bulk)
+        self.check_deps_button = QPushButton(self.tr("Check dependencies"))
+        self.check_deps_button.clicked.connect(self.handle_check_dependencies)
         self.mod_count_label = QLabel(self.tr("Mods: {n}").format(n=0))
 
         add_mod_layout.addWidget(self.add_mod_url)
         add_mod_layout.addWidget(self.add_mod_button)
         add_mod_layout.addWidget(self.add_mod_bulk_button)
+        add_mod_layout.addWidget(self.check_deps_button)
         add_mod_layout.addWidget(self.mod_count_label)
 
         layout.addLayout(add_mod_layout)
@@ -1230,6 +1233,139 @@ class WorkspaceWindow(QMainWindow):
 
         self.render_mod_list()
 
+    def _check_missing_hard_dependencies(self):
+        """
+        Scan current pack mods and return mods that have required (hard) dependencies
+        not installed. Only considers Modrinth mods (with project_id and dependencies list).
+        Returns list of {"mod": mod_entry, "missing": [{"name", "project_id", "url"}, ...]}.
+        """
+        files = self.current_pack_data.get("files", [])
+        installed_ids = {m.get("project_id") for m in files if m.get("project_id")}
+        result = []
+        for mod in files:
+            deps = mod.get("dependencies", [])
+            required = [d for d in deps if d.get("type") == "required" and d.get("project_id")]
+            if not required:
+                continue
+            missing = [
+                {"name": d.get("name", d.get("project_id", "?")), "project_id": d.get("project_id"), "url": d.get("url", "")}
+                for d in required
+                if d.get("project_id") not in installed_ids
+            ]
+            if missing:
+                result.append({"mod": mod, "missing": missing})
+        return result
+
+    def _resolve_missing_deps_for_install(self, issues):
+        """
+        From _check_missing_hard_dependencies result, build unique missing project_ids,
+        fetch compatible Modrinth versions (pack's mc_version + Modrinth loader id), and return
+        list of mod infos for DependencySelectionDialog / handle_modrinth_url: each
+        {"title", "slug", "project_id", "url", "icon_url", "version_number", ...}.
+        Returns (list of resolved mods, list of unresolved {name, project_id, url}).
+        """
+        deps_cfg = self.current_pack_data.get("dependencies", {})
+        mc_version, modrinth_loader = self._get_pack_modrinth_loader(deps_cfg)
+        if not mc_version or not modrinth_loader:
+            return [], []
+
+        # Unique missing project_ids (keep first name/url we saw)
+        missing_by_id = {}
+        for item in issues:
+            for dep in item["missing"]:
+                pid = dep.get("project_id")
+                if pid and pid not in missing_by_id:
+                    missing_by_id[pid] = {"name": dep.get("name", pid), "url": dep.get("url", "")}
+
+        resolved = []
+        unresolved = []
+        for project_id, info in missing_by_id.items():
+            try:
+                project_data = requests.get(
+                    f"https://api.modrinth.com/v2/project/{project_id}").json()
+                versions = requests.get(
+                    f"https://api.modrinth.com/v2/project/{project_id}/version").json()
+                compatible = [
+                    v for v in versions
+                    if mc_version in v.get("game_versions", []) and modrinth_loader in v.get("loaders", [])
+                ]
+                if not compatible:
+                    unresolved.append({"name": project_data.get("title", info["name"]), "project_id": project_id, "url": f"https://modrinth.com/mod/{project_data.get('slug', '') or project_id}"})
+                    continue
+                v = compatible[0]
+                resolved.append({
+                    "title": project_data.get("title", info["name"]),
+                    "description": project_data.get("description", ""),
+                    "slug": project_data.get("slug", ""),
+                    "project_id": project_id,
+                    "url": f"https://modrinth.com/mod/{project_data.get('slug')}",
+                    "icon_url": project_data.get("icon_url", ""),
+                    "dependency_type": "required",
+                    "version_number": v.get("version_number", ""),
+                })
+            except Exception as e:
+                print(f"Failed to resolve dependency {project_id}: {e}")
+                unresolved.append({"name": info.get("name", project_id), "project_id": project_id, "url": info.get("url", "")})
+        return resolved, unresolved
+
+    def handle_check_dependencies(self):
+        """Check for missing hard dependencies; resolve compatible mods and offer to install them."""
+        issues = self._check_missing_hard_dependencies()
+        if not issues:
+            QMessageBox.information(
+                self,
+                self.tr("Dependencies check"),
+                self.tr("All mods have their required dependencies installed."),
+            )
+            return
+        deps_cfg = self.current_pack_data.get("dependencies", {})
+        mc_version, modrinth_loader = self._get_pack_modrinth_loader(deps_cfg)
+        if not mc_version or not modrinth_loader:
+            QMessageBox.warning(
+                self,
+                self.tr("Dependencies check"),
+                self.tr("Set Minecraft version and mod loader in Pack Info first, then run Check dependencies again."),
+            )
+            return
+        resolved, unresolved = self._resolve_missing_deps_for_install(issues)
+        if not resolved and not unresolved:
+            return
+        if not resolved:
+            # All missing deps could not be resolved (no compatible version)
+            msg = self.tr("Missing required dependencies could not be resolved for your Minecraft/loader. Add them manually from Modrinth:\n\n")
+            msg += "\n".join(f"• {u.get('name', u.get('project_id'))}" for u in unresolved)
+            QMessageBox.warning(self, self.tr("Missing dependencies"), msg)
+            return
+        # Show dialog: these mods will be added when you click OK (same as add-mod dependency flow)
+        already_added = {
+            m.get("project_id") for m in self.current_pack_data.get("files", [])
+            if m.get("project_id")
+        }
+        dlg = DependencySelectionDialog(
+            resolved,
+            [],
+            unresolved_required=unresolved,
+            unresolved_optional=[],
+            parent_mod={"title": self.tr("Missing required dependencies (will be added)")},
+            parent=self,
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        for dep_mod in resolved:
+            if dep_mod.get("project_id") in already_added:
+                continue
+            self.handle_modrinth_url(
+                f"https://modrinth.com/mod/{dep_mod['slug']}",
+                already_added=already_added,
+            )
+            already_added.add(dep_mod.get("project_id"))
+        self.render_mod_list()
+        QMessageBox.information(
+            self,
+            self.tr("Dependencies check"),
+            self.tr("Missing required dependencies have been added. Run Check dependencies again if you have many levels of deps."),
+        )
+
     def start_bulk_import(self, file_path):
         self.progress_dialog = QProgressDialog(
             self.tr("Importing mods..."), self.tr("Cancel"), 0, 100, self
@@ -1295,18 +1431,17 @@ class WorkspaceWindow(QMainWindow):
 
         try:
             deps = self.current_pack_data.get("dependencies", {})
-            mc_version = deps.get("minecraft", "").strip()
-            mod_loader = (
-                deps.get("neoforge") or deps.get("forge") or
-                deps.get("fabric-loader") or deps.get("quilt") or ""
-            )
-            if isinstance(mod_loader, str):
-                mod_loader = mod_loader.strip()
+            mc_version, modrinth_loader = self._get_pack_modrinth_loader(deps)
 
             if not mc_version:
                 if not bulk_mode:
                     QMessageBox.warning(
                         self, self.tr("Minecraft version missing"), self.tr("You need to select a Minecraft version first."))
+                return
+            if not modrinth_loader:
+                if not bulk_mode:
+                    QMessageBox.warning(
+                        self, self.tr("Mod loader missing"), self.tr("You need to select a mod loader (NeoForge, Forge, Fabric, or Quilt) in Pack Info first."))
                 return
 
             parts = url.strip("/").split("/")
@@ -1354,23 +1489,26 @@ class WorkspaceWindow(QMainWindow):
                     f"https://api.modrinth.com/v2/project/{project_id}/version").json()
                 compatible_versions = [
                     v for v in versions
-                    if mc_version in v.get("game_versions", []) and mod_loader in v.get("loaders", [])
+                    if mc_version in v.get("game_versions", []) and modrinth_loader in v.get("loaders", [])
                 ]
                 if not compatible_versions:
                     raise ValueError(
-                        self.tr("No compatible version found for Minecraft {mc_version} and {mod_loader}.").format(mc_version=mc_version, mod_loader=mod_loader))
+                        self.tr("No compatible version found for Minecraft {mc_version} and {loader}.").format(mc_version=mc_version, loader=modrinth_loader))
                 version_data = compatible_versions[0]
             else:
                 raise ValueError(self.tr("Unrecognized Modrinth URL."))
 
             already_added.add(project_id)
 
-            # Dependencies
+            # Dependencies (Modrinth): resolve compatible versions and track unresolved
             required_mods = []
             optional_mods = []
+            unresolved_required = []
+            unresolved_optional = []
             for dep in version_data.get("dependencies", []):
                 if not dep.get("project_id"):
                     continue
+                dep_type = dep.get("dependency_type", "required")
                 try:
                     dep_project = requests.get(
                         f"https://api.modrinth.com/v2/project/{dep['project_id']}").json()
@@ -1379,9 +1517,19 @@ class WorkspaceWindow(QMainWindow):
                     ).json()
                     compatible = [
                         v for v in dep_versions
-                        if mc_version in v.get("game_versions", []) and mod_loader in v.get("loaders", [])
+                        if mc_version in v.get("game_versions", []) and modrinth_loader in v.get("loaders", [])
                     ]
+                    minimal_info = {
+                        "title": dep_project.get("title", dep["project_id"]),
+                        "project_id": dep["project_id"],
+                        "slug": dep_project.get("slug", ""),
+                        "url": f"https://modrinth.com/mod/{dep_project.get('slug', '') or dep['project_id']}",
+                    }
                     if not compatible:
+                        if dep_type == "required":
+                            unresolved_required.append(minimal_info)
+                        else:
+                            unresolved_optional.append(minimal_info)
                         continue
                     dep_version = compatible[0]
                     dep_info = {
@@ -1391,23 +1539,34 @@ class WorkspaceWindow(QMainWindow):
                         "project_id": dep["project_id"],
                         "url": f"https://modrinth.com/mod/{dep_project.get('slug')}",
                         "icon_url": dep_project.get("icon_url", ""),
-                        "dependency_type": dep.get("dependency_type", "required"),
+                        "dependency_type": dep_type,
                         "version_number": dep_version.get("version_number", "")
                     }
-                    if dep["dependency_type"] == "required":
+                    if dep_type == "required":
                         required_mods.append(dep_info)
                     else:
                         optional_mods.append(dep_info)
                 except Exception as e:
                     print(
                         f"Failed to fetch dependency info for {dep['project_id']}: {e}")
+                    minimal_info = {
+                        "title": dep.get("project_id", "?"),
+                        "project_id": dep.get("project_id", ""),
+                        "url": f"https://modrinth.com/project/{dep.get('project_id', '')}",
+                    }
+                    if dep_type == "required":
+                        unresolved_required.append(minimal_info)
+                    else:
+                        unresolved_optional.append(minimal_info)
 
             required_mods = [
                 m for m in required_mods if m["project_id"] not in already_added]
             optional_mods = [
                 m for m in optional_mods if m["project_id"] not in already_added]
 
-            if required_mods or optional_mods:
+            # Always show dependency dialog when the mod has any deps (so user must add resolvable ones)
+            has_any_deps = required_mods or optional_mods or unresolved_required or unresolved_optional
+            if has_any_deps:
                 if bulk_mode:
                     self._bulk_dependency_queue.extend(
                         f"https://modrinth.com/mod/{dep_mod['slug']}"
@@ -1416,6 +1575,8 @@ class WorkspaceWindow(QMainWindow):
                 else:
                     dlg = DependencySelectionDialog(
                         required_mods, optional_mods,
+                        unresolved_required=unresolved_required,
+                        unresolved_optional=unresolved_optional,
                         parent_mod={"title": project_data.get(
                             "title"), "slug": project_data.get("slug")},
                         parent=self
@@ -1837,6 +1998,22 @@ class WorkspaceWindow(QMainWindow):
         """Current loader selector value -> mod_loader id (neoforge, forge, fabric, quilt)."""
         sel = self.loader_selector.currentText().strip().lower()
         return "fabric" if sel == "fabric-loader" else sel if sel else None
+
+    def _get_pack_modrinth_loader(self, deps_cfg=None):
+        """
+        From pack dependencies, return (mc_version, modrinth_loader_id).
+        modrinth_loader_id is the string Modrinth API uses in version['loaders']:
+        'neoforge', 'forge', 'fabric', or 'quilt'. Pack stores loader *version* (e.g. neoforge: "1.20.1-47.3.12"),
+        so we use which key is set, not the value.
+        """
+        if deps_cfg is None:
+            deps_cfg = self.current_pack_data.get("dependencies", {})
+        mc_version = (deps_cfg.get("minecraft") or "").strip()
+        for key in ("neoforge", "forge", "fabric-loader", "quilt"):
+            if (deps_cfg.get(key) or "").strip():
+                loader_id = "fabric" if key == "fabric-loader" else key
+                return mc_version, loader_id
+        return mc_version, ""
 
     def _fill_loader_version_combo(self):
         """Fill the visible loader version combo via mod_loader for current MC version."""

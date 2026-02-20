@@ -41,9 +41,16 @@ class OptionalFeatureDialog(QDialog):
         remote_layout = QFormLayout()
         self.remote_url_input = QLineEdit()
         self.remote_target_input = QLineEdit()
+        self.remote_target_input.setPlaceholderText("e.g. mods/MyMod.jar")
         remote_layout.addRow(self.tr("Remote URL:"), self.remote_url_input)
-        remote_layout.addRow(self.tr("Target Path (optional):"),
-                             self.remote_target_input)
+        remote_layout.addRow(
+            self.tr("Target path (relative to game dir):"),
+            self.remote_target_input,
+        )
+        remote_layout.addRow(
+            "",
+            QLabel(self.tr("Path where the file is saved (e.g. mods/MyMod.jar for the mods folder).")),
+        )
         self.remote_tab.setLayout(remote_layout)
 
         # === Add tabs to widget ===

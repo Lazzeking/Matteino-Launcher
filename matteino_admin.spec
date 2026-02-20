@@ -1,16 +1,17 @@
 # PyInstaller spec for Matteino Launcher (admin)
 # Run from project root: pyinstaller matteino_admin.spec
-# Executable name and icon: admin.config.json (if present) overrides config/defaults/admin.default.json.
+# Executable name and icon: launcher_config/admin.config.json (if present) overrides launcher_config/defaults/admin.default.json.
 
 import json
 import os
 import re
 
 _spec_dir = os.path.dirname(os.path.abspath(SPEC))
-with open(os.path.join(_spec_dir, 'config/defaults/admin.default.json'), 'r', encoding='utf-8') as f:
+_defaults_dir = os.path.join(_spec_dir, 'launcher_config', 'defaults')
+with open(os.path.join(_defaults_dir, 'admin.default.json'), 'r', encoding='utf-8') as f:
     _cfg = json.load(f)
 _admin_cfg_path = None
-for _path in (os.path.join(_spec_dir, 'admin.config.json'), os.path.join(_spec_dir, 'config/admin.config.json')):
+for _path in (os.path.join(_spec_dir, 'launcher_config', 'admin.config.json'), os.path.join(_spec_dir, 'admin.config.json')):
     if os.path.isfile(_path):
         with open(_path, 'r', encoding='utf-8') as f:
             _cfg.update(json.load(f))
@@ -32,19 +33,19 @@ if not os.path.isfile(_icon_abs) and _icon_rel.endswith('.png'):
             break
 EXE_ICON_ADMIN = _icon_abs if os.path.isfile(_icon_abs) else None
 
-config_defaults = 'config/defaults'
+launcher_config = 'launcher_config'
 admin_images = 'launcherAdmin/resources/images'
 admin_translations = 'launcherAdmin/translations'
 resources_about = 'resources/about.html'
 
-# Data files: defaults + packager config (shipped with exe) + custom resources from config
+# Data files: defaults + packager config (shipped with exe) + custom resources
 datas_admin = [
-    (os.path.join(_spec_dir, f'{config_defaults}/admin.default.json'), config_defaults),
+    (os.path.join(_spec_dir, launcher_config, 'defaults', 'admin.default.json'), os.path.join(launcher_config, 'defaults')),
     (os.path.join(_spec_dir, resources_about), 'resources'),
     (os.path.join(_spec_dir, admin_images), admin_images),
 ]
 if _admin_cfg_path:
-    datas_admin.append((_admin_cfg_path, 'config'))
+    datas_admin.append((_admin_cfg_path, launcher_config))
 for _key in ('logo_path', 'icon_path'):
     _rel = _cfg.get(_key)
     if _rel and not os.path.isabs(_rel):

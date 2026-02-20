@@ -18,6 +18,43 @@ def _load_json(path: str) -> dict:
         return json.load(f)
 
 
+def _migrate_user_config_from_legacy_paths(app: str, new_path: str) -> None:
+    """If new_path does not exist, try legacy paths (config/<app>.config.json or <app>.config.json in writable_dir) and copy to new_path."""
+    w = paths.writable_dir()
+    legacy_candidates = [
+        os.path.join(w, "config", f"{app}.config.json"),
+        os.path.join(w, f"{app}.config.json"),
+    ]
+    for legacy in legacy_candidates:
+        if os.path.isfile(legacy):
+            try:
+                os.makedirs(os.path.dirname(new_path), exist_ok=True)
+                with open(legacy, "r", encoding="utf-8") as f:
+                    data = f.read()
+                with open(new_path, "w", encoding="utf-8") as f:
+                    f.write(data)
+            except OSError:
+                pass
+            break
+
+
+def _migrate_default_config_from_legacy_paths(app: str, new_path: str) -> None:
+    """If new_path does not exist, copy from legacy config/defaults/<app>.default.json (project root) to new_path."""
+    if os.path.isfile(new_path):
+        return
+    base = paths.base_dir()
+    legacy = os.path.join(base, "config", "defaults", f"{app}.default.json")
+    if os.path.isfile(legacy):
+        try:
+            os.makedirs(os.path.dirname(new_path), exist_ok=True)
+            with open(legacy, "r", encoding="utf-8") as f:
+                data = f.read()
+            with open(new_path, "w", encoding="utf-8") as f:
+                f.write(data)
+        except OSError:
+            pass
+
+
 def _deep_merge(base: dict, override: dict) -> dict:
     """Merge override into base (override wins). Nested dicts merged recursively."""
     out = dict(base)
@@ -48,27 +85,33 @@ def _apply_env(config: dict, env_map: list[tuple[str, str]]) -> None:
 def load_config(app: str) -> dict:
     """
     Load config for 'admin' or 'user'. Uses:
-    1. config/defaults/<app>.default.json (bundled or from project)
-    2. When frozen: config/<app>.config.json in the bundle (packager's config shipped with the exe)
-    3. Optional <app>.config.json in writable dir (override next to the executable)
+    1. launcher_config/defaults/<app>.default.json (bundled when frozen, under writable_dir when not)
+    2. When frozen: launcher_config/<app>.config.json in the bundle (packager's config shipped with the exe)
+    3. Optional <app>.config.json in writable dir (override next to the executable when frozen)
     4. Environment variables for secrets (see env_map below)
 
     Returns a single dict. Paths in the config can be relative to writable_dir();
     the loader does not resolve them here so callers can use paths.writable_dir().
     """
     default_path = paths.default_config_path(app)
+    # When running from source, migrate defaults to launcher_config/defaults/ if needed
+    if not getattr(sys, "frozen", False) and not os.path.isfile(default_path):
+        _migrate_default_config_from_legacy_paths(app, default_path)
     base = _load_json(default_path)
     if not base:
         base = {}
 
     # Bundled config (packager's config built into the exe when frozen)
     if getattr(sys, "frozen", False):
-        bundled_cfg = os.path.join(paths.base_dir(), "config", f"{app}.config.json")
+        bundled_cfg = os.path.join(paths.base_dir(), paths.LAUNCHER_CONFIG_DIR, f"{app}.config.json")
         bundled = _load_json(bundled_cfg)
         if bundled:
             base = _deep_merge(base, bundled)
 
     user_path = paths.user_config_path(app)
+    # When running from source, migrate from old locations so config/ is no longer mixed with game config
+    if not getattr(sys, "frozen", False) and not os.path.isfile(user_path):
+        _migrate_user_config_from_legacy_paths(app, user_path)
     override = _load_json(user_path)
     if override:
         base = _deep_merge(base, override)

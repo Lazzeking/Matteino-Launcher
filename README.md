@@ -38,23 +38,23 @@ From the project root (after `pip install -r requirements.txt`):
 - **User launcher:** `python launcherUser/main.py`
 - **Admin launcher:** `python launcherAdmin/main.py`
 
-Config and data paths are resolved from the project root when run this way; see `config/defaults/` for default settings.
+Config and data paths are resolved from the project root when run this way; see `launcher_config/defaults/` for default settings.
 
 ## Project layout
 
 - `launcherUser/` — User launcher UI and logic (main window, accounts, packs, play).
 - `launcherAdmin/` — Admin launcher (workspace selection, pack editing, mod list, optional features).
 - `src/common/` — Shared code (config, paths, version, about dialog).
-- `config/` — Default config files; local overrides and secrets are gitignored.
+- `launcher_config/` — Launcher config: `defaults/` (default JSON), optional overrides `admin.config.json`, `user.config.json`. Do not use `config/` for launcher (reserved for game/pack data if needed).
 - `resources/` — Editable assets (e.g. About text in `about.html`).
 
 Version is defined in `src/common/version.py` and used by both apps.
 
 ## Config and data
 
-- Default config: `config/defaults/user.default.json` and `admin.default.json`.
-- Local overrides and secrets (e.g. `*.local.json`, `config/local/`, `.env`) are not committed; see `.gitignore`.
-- **User launcher – optional server status:** In `user.config.json` you can set `server_status.enabled: true` and `server_status.servers` to a list of `{ "name": "Display Name", "host": "hostname", "port": 25565 }`. The launcher will show a small preview of each server (online/offline and player count), refreshed on a configurable interval (`refresh_interval_seconds`).
+- Default config: `launcher_config/defaults/user.default.json` and `admin.default.json`.
+- Overrides: `launcher_config/user.config.json` and `launcher_config/admin.config.json` (optional; do not commit secrets; see `.gitignore`).
+- **User launcher – optional server status:** In `launcher_config/user.config.json` you can set `server_status.enabled: true` and `server_status.servers` to a list of `{ "name": "Display Name", "host": "hostname", "port": 25565 }`. The launcher will show a small preview of each server (online/offline and player count), refreshed on a configurable interval (`refresh_interval_seconds`).
 
 ## Building distributable releases
 
@@ -75,8 +75,8 @@ Build standalone executables for **Linux, Windows, and macOS** (no Python requir
 
 ### What gets bundled
 
-- **Defaults:** `config/defaults/*.default.json`, `resources/about.html`, launcher images, admin translations (`.qm`).
-- **Your config:** If `user.config.json` or `admin.config.json` exists (project root or `config/`), it is **included in the exe** and used at runtime (so APIs, custom URLs, etc. are built in). A config file next to the executable still overrides the bundled one.
+- **Defaults:** `launcher_config/defaults/*.default.json`, `resources/about.html`, launcher images, admin translations (`.qm`).
+- **Your config:** If `launcher_config/user.config.json` or `launcher_config/admin.config.json` exists, it is **included in the exe** and used at runtime (so APIs, custom URLs, etc. are built in). A config file next to the executable still overrides the bundled one.
 - **Custom resources:** Paths from your config (`logo_path`, `icon_path`, `loading_image_path` for user) are bundled when they are relative and the files exist, so custom logos and icons ship with the exe.
 
 Executable **name** and **icon** come from your config (override if present, else defaults). Use a `.ico` for the Windows exe icon.

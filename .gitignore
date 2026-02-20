@@ -2,7 +2,7 @@
 *.local.json
 admin.config.json
 user.config.json
-config/local/
+launcher_config/*.config.json
 .env
 .env.local
 *.secret.*

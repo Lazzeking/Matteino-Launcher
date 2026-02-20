@@ -3,7 +3,7 @@
 Copy your current development setup into distribution/ so you can ship it
 with the executables (e.g. after running the distribute script).
 
-- Copies user.config.json and admin.config.json from config/ or project root.
+- Copies launcher_config/ (user.config.json, admin.config.json, defaults/) into distribution/launcher_config/.
 - Copies all graphics: full launcherUser/resources/images/ and launcherAdmin/resources/images/
   (logo, icon, loading, down_chevron, matteinocraft_mc_logo, etc.).
 - Copies any extra relative paths from config (e.g. translations.file) into distribution/.
@@ -30,9 +30,12 @@ IMAGE_DIRS = [
 ADMIN_TRANSLATIONS_KEY = ("translations", "file")
 
 
+LAUNCHER_CONFIG_DIR = "launcher_config"
+
+
 def find_config(app: str) -> Path | None:
-    """Return path to app config if it exists (config/ or root)."""
-    for base in (PROJECT_ROOT / "config", PROJECT_ROOT):
+    """Return path to app config if it exists (launcher_config/ or project root)."""
+    for base in (PROJECT_ROOT / LAUNCHER_CONFIG_DIR, PROJECT_ROOT):
         p = base / f"{app}.config.json"
         if p.is_file():
             return p
@@ -40,15 +43,27 @@ def find_config(app: str) -> Path | None:
 
 
 def copy_configs() -> list[str]:
+    """Copy launcher_config/*.config.json and launcher_config/defaults/ into distribution/launcher_config/."""
     copied = []
+    src_lc = PROJECT_ROOT / LAUNCHER_CONFIG_DIR
+    dst_lc = DISTRIBUTION / LAUNCHER_CONFIG_DIR
+    if not src_lc.is_dir():
+        return copied
+    dst_lc.mkdir(parents=True, exist_ok=True)
     for app in ("user", "admin"):
-        src = find_config(app)
-        if not src:
-            continue
-        dst = DISTRIBUTION / f"{app}.config.json"
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src, dst)
-        copied.append(str(dst.relative_to(PROJECT_ROOT)))
+        src = src_lc / f"{app}.config.json"
+        if src.is_file():
+            dst = dst_lc / f"{app}.config.json"
+            shutil.copy2(src, dst)
+            copied.append(str(dst.relative_to(PROJECT_ROOT)))
+    defaults_src = src_lc / "defaults"
+    defaults_dst = dst_lc / "defaults"
+    if defaults_src.is_dir():
+        defaults_dst.mkdir(parents=True, exist_ok=True)
+        for f in defaults_src.iterdir():
+            if f.is_file():
+                shutil.copy2(f, defaults_dst / f.name)
+                copied.append(str((defaults_dst / f.name).relative_to(PROJECT_ROOT)))
     return copied
 
 
@@ -129,7 +144,7 @@ def main() -> None:
             print("  ", p)
         print("\nNote: Config may contain secrets (API keys, etc.). Do not commit distribution/ if so.")
     else:
-        print("No config or assets found to copy. Add user.config.json and/or admin.config.json in config/ or project root.")
+        print("No config or assets found to copy. Add launcher_config/user.config.json and/or launcher_config/admin.config.json.")
 
 
 if __name__ == "__main__":

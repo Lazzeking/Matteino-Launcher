@@ -68,21 +68,26 @@ def resource_dir(app: str) -> str:
 
 
 def default_config_path(app: str) -> str:
-    """Path to the default config file for admin or user (bundled or in config/defaults)."""
+    """Path to the default config file for admin or user. Uses launcher_config/defaults/ (in bundle when frozen, under writable_dir when not)."""
     if _is_frozen():
-        return os.path.join(base_dir(), "config", "defaults", f"{app}.default.json")
-    return os.path.join(base_dir(), "config", "defaults", f"{app}.default.json")
+        return os.path.join(base_dir(), LAUNCHER_CONFIG_DIR, "defaults", f"{app}.default.json")
+    return os.path.join(writable_dir(), LAUNCHER_CONFIG_DIR, "defaults", f"{app}.default.json")
+
+
+# Launcher config directory (no longer use config/ for launcher to avoid mixing with game/pack config)
+LAUNCHER_CONFIG_DIR = "launcher_config"
 
 
 def user_config_path(app: str) -> str:
-    """Path to optional user override config. When frozen: next to exe. When dev: project root or config/ (first that exists)."""
-    primary = os.path.join(writable_dir(), f"{app}.config.json")
+    """
+    Path to optional user override config.
+    - When frozen: next to exe (writable_dir()/admin.config.json).
+    - When running from source: writable_dir()/launcher_config/<app>.config.json
+      so launcher config is never mixed with pack/game config/ (e.g. config/notenoughanimations.json).
+    """
     if _is_frozen():
-        return primary
-    fallback = os.path.join(writable_dir(), "config", f"{app}.config.json")
-    if os.path.isfile(fallback) and not os.path.isfile(primary):
-        return fallback
-    return primary
+        return os.path.join(writable_dir(), f"{app}.config.json")
+    return os.path.join(writable_dir(), LAUNCHER_CONFIG_DIR, f"{app}.config.json")
 
 
 def resolve_asset_path(relative_path: str) -> str:
