@@ -40,7 +40,13 @@ cp -r dist/* "$OUT_DIR/"
 
 if [ -d distribution ] && [ -n "$(ls -A distribution 2>/dev/null)" ]; then
   echo "  - Adding your files from distribution/"
-  cp -r distribution/* "$OUT_DIR/"
+  for f in distribution/*; do
+    [ -e "$f" ] || continue
+    case "$(basename "$f")" in
+      README.md) ;;   # Skip: for repo only, not for end users
+      *) cp -r "$f" "$OUT_DIR/" ;;
+    esac
+  done
 else
   echo "  - (no distribution/ contents; add configs, images, scripts there if you need them)"
 fi
