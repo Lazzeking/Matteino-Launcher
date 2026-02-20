@@ -62,9 +62,9 @@ jobs:
         run: pyinstaller --noconfirm matteino_admin.spec
 
       - name: Zip executables
-        shell: bash
+        shell: pwsh
         run: |
-          cd dist && zip -r ../dist-windows.zip . && cd ..
+          Compress-Archive -Path dist\* -DestinationPath dist-windows.zip
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
