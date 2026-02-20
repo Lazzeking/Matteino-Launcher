@@ -75,8 +75,14 @@ def default_config_path(app: str) -> str:
 
 
 def user_config_path(app: str) -> str:
-    """Path to optional user override config (in writable dir)."""
-    return os.path.join(writable_dir(), f"{app}.config.json")
+    """Path to optional user override config. When frozen: next to exe. When dev: project root or config/ (first that exists)."""
+    primary = os.path.join(writable_dir(), f"{app}.config.json")
+    if _is_frozen():
+        return primary
+    fallback = os.path.join(writable_dir(), "config", f"{app}.config.json")
+    if os.path.isfile(fallback) and not os.path.isfile(primary):
+        return fallback
+    return primary
 
 
 def resolve_asset_path(relative_path: str) -> str:
