@@ -1,0 +1,102 @@
+# Build default Matteino Launcher executables (user + admin) for Linux, Windows, and macOS.
+# Artifacts contain only the executables. Use the distribute script on your machine to add
+# configs, images, and scripts and create a shippable zip/folder.
+# Triggers: push to main, release, or manual run.
+
+name: Build release
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build User launcher
+        run: pyinstaller --noconfirm matteino_user.spec
+
+      - name: Build Admin launcher
+        run: pyinstaller --noconfirm matteino_admin.spec
+
+      - name: Zip executables
+        run: |
+          cd dist && zip -r ../dist-linux.zip . && cd ..
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: dist-linux.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build User launcher
+        run: pyinstaller --noconfirm matteino_user.spec
+
+      - name: Build Admin launcher
+        run: pyinstaller --noconfirm matteino_admin.spec
+
+      - name: Zip executables
+        shell: bash
+        run: |
+          cd dist && zip -r ../dist-windows.zip . && cd ..
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-windows
+          path: dist-windows.zip
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build User launcher
+        run: pyinstaller --noconfirm matteino_user.spec
+
+      - name: Build Admin launcher
+        run: pyinstaller --noconfirm matteino_admin.spec
+
+      - name: Zip executables
+        run: |
+          cd dist && zip -r ../dist-macos.zip . && cd ..
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-macos
+          path: dist-macos.zip

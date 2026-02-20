@@ -37,6 +37,7 @@ Thumbs.db
 .launcher_cache/
 
 # Launcher runtime (accounts, packages, logs, downloaded packs)
+logs/
 launcherUser/packs/
 launcherUser/resources/accounts.json
 launcherUser/resources/packages.json

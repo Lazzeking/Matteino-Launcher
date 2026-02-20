@@ -10,6 +10,7 @@ if _project_root not in sys.path:
 from PyQt6.QtCore import QTranslator, QLocale, QLibraryInfo
 from PyQt6.QtWidgets import QApplication
 from src.common import config as common_config
+from src.common import paths as common_paths
 from windows.workspace_selection_window import WorkspaceSelectionWindow
 
 
@@ -22,9 +23,10 @@ def main():
     trans_cfg = cfg.get("translations", {})
     if trans_cfg.get("enabled"):
         translator = QTranslator()
-        trans_file = trans_cfg.get("file", "translations/it.qm")
+        trans_file = trans_cfg.get("file", "launcherAdmin/translations/it.qm")
         if not os.path.isabs(trans_file):
-            trans_file = os.path.join(_project_root, trans_file)
+            root = common_paths.base_dir() if getattr(sys, "frozen", False) else _project_root
+            trans_file = os.path.join(root, trans_file)
         if os.path.isfile(trans_file):
             translator.load(trans_file)
             app.installTranslator(translator)

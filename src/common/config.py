@@ -5,6 +5,7 @@ users can edit the JSON.
 """
 import json
 import os
+import sys
 from pathlib import Path
 
 from . import paths
@@ -48,8 +49,9 @@ def load_config(app: str) -> dict:
     """
     Load config for 'admin' or 'user'. Uses:
     1. config/defaults/<app>.default.json (bundled or from project)
-    2. Optional <app>.config.json in writable dir (user override)
-    3. Environment variables for secrets (see env_map below)
+    2. When frozen: config/<app>.config.json in the bundle (packager's config shipped with the exe)
+    3. Optional <app>.config.json in writable dir (override next to the executable)
+    4. Environment variables for secrets (see env_map below)
 
     Returns a single dict. Paths in the config can be relative to writable_dir();
     the loader does not resolve them here so callers can use paths.writable_dir().
@@ -58,6 +60,13 @@ def load_config(app: str) -> dict:
     base = _load_json(default_path)
     if not base:
         base = {}
+
+    # Bundled config (packager's config built into the exe when frozen)
+    if getattr(sys, "frozen", False):
+        bundled_cfg = os.path.join(paths.base_dir(), "config", f"{app}.config.json")
+        bundled = _load_json(bundled_cfg)
+        if bundled:
+            base = _deep_merge(base, bundled)
 
     user_path = paths.user_config_path(app)
     override = _load_json(user_path)

@@ -59,12 +59,9 @@ def resource_dir(app: str) -> str:
     """
     w = writable_dir()
     if _is_frozen():
-        # Bundled resources live next to the exe or in _MEIPASS; we use base_dir for bundled.
-        bundled = os.path.join(base_dir(), "resources", app, "images")
-        if os.path.isdir(bundled):
-            return bundled
-        return os.path.join(w, "resources", app, "images")
-    # From source: project has launcherAdmin/resources, launcherUser/resources
+        # Bundled resources: same layout as source (launcherUser/resources/images, launcherAdmin/resources/images)
+        app_dir = "launcherAdmin" if app == "admin" else "launcherUser"
+        return os.path.join(base_dir(), app_dir, "resources", "images")
     if app == "admin":
         return os.path.join(w, "launcherAdmin", "resources", "images")
     return os.path.join(w, "launcherUser", "resources", "images")
@@ -83,9 +80,11 @@ def user_config_path(app: str) -> str:
 
 
 def resolve_asset_path(relative_path: str) -> str:
-    """Resolve a path from config (e.g. 'launcherUser/resources/images/logo.png') to an absolute path."""
+    """Resolve a path from config (e.g. 'launcherUser/resources/images/logo.png') to an absolute path.
+    When frozen, relative paths are resolved against the bundle (base_dir) so bundled assets are found."""
     if not relative_path:
         return ""
     if os.path.isabs(relative_path):
         return relative_path
-    return os.path.join(writable_dir(), relative_path)
+    root = base_dir() if _is_frozen() else writable_dir()
+    return os.path.join(root, relative_path)
