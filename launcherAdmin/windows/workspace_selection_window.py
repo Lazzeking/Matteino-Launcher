@@ -4,6 +4,8 @@ import os
 import sys
 import json
 
+from src.common import paths as common_paths
+
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QListWidget, QFileDialog, QMessageBox, QLabel, QComboBox
@@ -25,7 +27,10 @@ class WorkspaceSelectionWindow(QMainWindow):
         self.paths = paths or {}
         self._workspaces_file = self.paths.get("workspaces_file", os.path.join(os.getcwd(), "resources", "workspaces.json"))
         images_dir = self.paths.get("images_dir", "")
-        project_root = os.path.dirname(os.path.dirname(images_dir)) if images_dir else os.getcwd()
+        if getattr(sys, "frozen", False):
+            project_root = common_paths.writable_dir()
+        else:
+            project_root = os.path.dirname(os.path.dirname(images_dir)) if images_dir else os.getcwd()
 
         # Resolve icon and logo from config
         icon_key = self.config.get("icon_path", "launcherAdmin/resources/images/icon.png")

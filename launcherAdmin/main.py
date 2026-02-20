@@ -25,8 +25,12 @@ def main():
         translator = QTranslator()
         trans_file = trans_cfg.get("file", "launcherAdmin/translations/it.qm")
         if not os.path.isabs(trans_file):
-            root = common_paths.base_dir() if getattr(sys, "frozen", False) else _project_root
-            trans_file = os.path.join(root, trans_file)
+            if getattr(sys, "frozen", False):
+                # Prefer file next to exe (distribution), then bundle
+                next_to_exe = os.path.join(common_paths.writable_dir(), trans_file)
+                trans_file = next_to_exe if os.path.isfile(next_to_exe) else os.path.join(common_paths.base_dir(), trans_file)
+            else:
+                trans_file = os.path.join(_project_root, trans_file)
         if os.path.isfile(trans_file):
             translator.load(trans_file)
             app.installTranslator(translator)

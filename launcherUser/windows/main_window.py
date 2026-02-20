@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import sys
 import json
 import base64
 import random
@@ -30,6 +31,7 @@ from workers.update_worker import UpdateModpackWorker
 from workers.install_worker import MCModLoaderInstallerWorker
 from widgets.optional_feature_selector import OptionalFeatureSelectorDialog
 from src.common.version import __version__ as LAUNCHER_VERSION
+from src.common import paths as common_paths
 from utils.base_stylesheet import getBaseStylesheet, set_images_dir
 from workers.player_render_worker import PlayerRenderWorker
 from workers.bust_render_worker import BustRenderWorker
@@ -52,7 +54,10 @@ class UserLauncher(QMainWindow):
         self._packages_file = self.paths.get("packages_file", "")
         self._packs_dir = self.paths.get("packs_dir", "")
         images_dir = self.paths.get("images_dir", "")
-        project_root = os.path.dirname(os.path.dirname(images_dir)) if images_dir else os.getcwd()
+        if getattr(sys, "frozen", False):
+            project_root = common_paths.writable_dir()
+        else:
+            project_root = os.path.dirname(os.path.dirname(images_dir)) if images_dir else os.getcwd()
 
         def _asset(cfg_key, default_rel, fallback_name):
             val = self.config.get(cfg_key, default_rel)
