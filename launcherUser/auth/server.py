@@ -122,9 +122,19 @@ def _complete_login_after_token(client_id, client_secret, redirect_url, code, co
     xsts_token = xsts["Token"]
 
     mc = ms_account.authenticate_with_minecraft(userhash, xsts_token)
+    if "error" in mc or "access_token" not in mc:
+        raise ValueError(
+            "This Microsoft account does not have Minecraft Java Edition. "
+            "You need to own the game on this account to use the launcher."
+        )
     access_token = mc["access_token"]
 
     profile = ms_account.get_profile(access_token)
+    if "error" in profile or "id" not in profile:
+        raise ValueError(
+            "This Microsoft account does not have Minecraft Java Edition, or the game is not available. "
+            "Make sure you own Minecraft on this account."
+        )
     profile["access_token"] = access_token
     profile["refresh_token"] = token_request["refresh_token"]
     return profile
@@ -149,56 +159,90 @@ def start_temp_server(code_verifier, client_id, client_secret, redirect_url, red
         handler.wfile.write(body)
 
     class AuthHandler(BaseHTTPRequestHandler):
-        def do_GET(self):
-            parsed_path = urlparse.urlparse(self.path)
-            if parsed_path.path == "/favicon.ico":
-                self.send_response(204)
-                self.end_headers()
-                return
-            query = urlparse.parse_qs(parsed_path.query)
+        def log_message(self, format, *args):
+            # Suppress default stderr logging (can cause issues on Windows GUI / frozen exe)
+            pass
 
-            if "code" in query:
-                code = query["code"][0]
-                try:
-                    self.server.login_data = _complete_login_after_token(
-                        client_id, client_secret, redirect_url, code, self.server.code_verifier
-                    )
-                except ValueError as e:
-                    send_html_response(
-                        self, 400, "Login failed",
-                        str(e), is_success=False
-                    )
+        def do_GET(self):
+            try:
+                parsed_path = urlparse.urlparse(self.path)
+                if parsed_path.path == "/favicon.ico":
+                    self.send_response(204)
+                    self.end_headers()
                     return
-                except KeyError as e:
+                query = urlparse.parse_qs(parsed_path.query)
+
+                if "code" in query:
+                    code = query["code"][0]
+                    try:
+                        self.server.login_data = _complete_login_after_token(
+                            client_id, client_secret, redirect_url, code, self.server.code_verifier
+                        )
+                    except ValueError as e:
+                        send_html_response(
+                            self, 400, "Login failed",
+                            str(e), is_success=False
+                        )
+                        return
+                    except KeyError as e:
+                        # Often means API returned error (e.g. no Minecraft on account)
+                        msg = str(e).lower()
+                        if "access_token" in msg or "id" in msg or "token" in msg:
+                            send_html_response(
+                                self, 400, "Login failed",
+                                "This Microsoft account does not have Minecraft Java Edition. "
+                                "You need to own the game on this account to use the launcher.",
+                                is_success=False,
+                            )
+                        else:
+                            send_html_response(
+                                self, 400, "Login failed",
+                                f"Login response missing expected data: {e}",
+                                is_success=False,
+                            )
+                        return
+                    except Exception as e:
+                        err_msg = str(e).lower()
+                        if "403" in err_msg or "forbidden" in err_msg or "entitlement" in err_msg:
+                            send_html_response(
+                                self, 400, "Login failed",
+                                "This Microsoft account does not have Minecraft Java Edition. "
+                                "You need to own the game on this account to use the launcher.",
+                                is_success=False,
+                            )
+                        else:
+                            send_html_response(
+                                self, 500, "Server error",
+                                _safe_http_message(str(e)),
+                                is_success=False,
+                            )
+                        return
+
                     send_html_response(
-                        self, 400, "Login failed",
-                        f"Login response missing expected data: {e}",
+                        self, 200, "Login successful",
+                        "You can close this page and return to the launcher.",
+                        is_success=True,
+                    )
+                    threading.Thread(target=self.server.shutdown,
+                                     daemon=True).start()
+                else:
+                    send_html_response(
+                        self, 400, "Bad request",
+                        "Missing code parameter. Try logging in again from the launcher.",
                         is_success=False,
                     )
-                    return
-                except Exception as e:
+            except Exception as e:
+                try:
                     send_html_response(
                         self, 500, "Server error",
                         _safe_http_message(str(e)),
                         is_success=False,
                     )
-                    return
+                except Exception:
+                    pass
 
-                send_html_response(
-                    self, 200, "Login successful",
-                    "You can close this page and return to the launcher.",
-                    is_success=True,
-                )
-                threading.Thread(target=self.server.shutdown,
-                                 daemon=True).start()
-            else:
-                send_html_response(
-                    self, 400, "Bad request",
-                    "Missing code parameter. Try logging in again from the launcher.",
-                    is_success=False,
-                )
-
-    server_address = ("", redirect_port)
+    # Bind to 127.0.0.1 to avoid IPv6/localhost issues on Windows; browser redirect still uses localhost
+    server_address = ("127.0.0.1", redirect_port)
     httpd = HTTPServer(server_address, AuthHandler)
     httpd.code_verifier = code_verifier
     httpd.login_data = None

@@ -32,14 +32,16 @@ if not os.path.isfile(_icon_abs) and _icon_rel.endswith('.png'):
             break
 EXE_ICON_USER = _icon_abs if os.path.isfile(_icon_abs) else None
 
-# Data files: defaults + packager config (shipped with exe) + custom resources from config
+# Data files: defaults + packager config (shipped with exe) + custom resources from config + auth templates
 config_defaults = 'config/defaults'
 user_images = 'launcherUser/resources/images'
 resources_about = 'resources/about.html'
+auth_templates = 'launcherUser/auth/templates'
 datas_user = [
     (os.path.join(_spec_dir, f'{config_defaults}/user.default.json'), config_defaults),
     (os.path.join(_spec_dir, resources_about), 'resources'),
     (os.path.join(_spec_dir, user_images), user_images),
+    (os.path.join(_spec_dir, auth_templates), auth_templates),
 ]
 if _user_cfg_path:
     datas_user.append((_user_cfg_path, 'config'))
