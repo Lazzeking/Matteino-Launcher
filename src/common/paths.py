@@ -81,10 +81,14 @@ def user_config_path(app: str) -> str:
 
 def resolve_asset_path(relative_path: str) -> str:
     """Resolve a path from config (e.g. 'launcherUser/resources/images/logo.png') to an absolute path.
-    When frozen, relative paths are resolved against the bundle (base_dir) so bundled assets are found."""
+    When frozen: resolve relative to the exe dir (writable_dir) first, then fall back to the bundle (base_dir)."""
     if not relative_path:
         return ""
     if os.path.isabs(relative_path):
         return relative_path
-    root = base_dir() if _is_frozen() else writable_dir()
-    return os.path.join(root, relative_path)
+    if _is_frozen():
+        next_to_exe = os.path.join(writable_dir(), relative_path)
+        if os.path.isfile(next_to_exe):
+            return next_to_exe
+        return os.path.join(base_dir(), relative_path)
+    return os.path.join(writable_dir(), relative_path)

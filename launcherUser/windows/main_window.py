@@ -2,7 +2,6 @@
 
 import hashlib
 import os
-import sys
 import json
 import base64
 import random
@@ -54,10 +53,6 @@ class UserLauncher(QMainWindow):
         self._packages_file = self.paths.get("packages_file", "")
         self._packs_dir = self.paths.get("packs_dir", "")
         images_dir = self.paths.get("images_dir", "")
-        if getattr(sys, "frozen", False):
-            project_root = common_paths.writable_dir()
-        else:
-            project_root = os.path.dirname(os.path.dirname(images_dir)) if images_dir else os.getcwd()
 
         def _asset(cfg_key, default_rel, fallback_name):
             val = self.config.get(cfg_key, default_rel)
@@ -65,7 +60,8 @@ class UserLauncher(QMainWindow):
                 return os.path.join(images_dir, fallback_name) if images_dir else None
             if os.path.isabs(val):
                 return val if os.path.isfile(val) else (os.path.join(images_dir, fallback_name) if images_dir else None)
-            candidate = os.path.join(project_root, val)
+            # Relative paths: resolved relative to exe when frozen, else project root
+            candidate = common_paths.resolve_asset_path(val)
             return candidate if os.path.isfile(candidate) else (os.path.join(images_dir, fallback_name) if images_dir else None)
 
         self._logo_path = _asset("logo_path", "launcherUser/resources/images/logo.png", "matteinocraft_logo.png") or ""

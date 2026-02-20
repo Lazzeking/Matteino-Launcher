@@ -4,9 +4,12 @@ Copy your current development setup into distribution/ so you can ship it
 with the executables (e.g. after running the distribute script).
 
 - Copies user.config.json and admin.config.json from config/ or project root.
-- Copies any relative paths referenced in those configs (logo_path, icon_path,
-  loading_image_path, translations.file) into distribution/, preserving paths.
-- Optionally copies resources/about.html.
+- Copies all graphics: full launcherUser/resources/images/ and launcherAdmin/resources/images/
+  (logo, icon, loading, down_chevron, matteinocraft_mc_logo, etc.).
+- Copies any extra relative paths from config (e.g. translations.file) into distribution/.
+- Copies resources/about.html.
+
+Config image paths (logo_path, icon_path, etc.) are resolved relative to the exe at runtime.
 
 Run from project root: python scripts/fill_distribution.py
 """
@@ -19,10 +22,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DISTRIBUTION = PROJECT_ROOT / "distribution"
 
-# Config keys that point to files we should copy (relative paths only)
-USER_FILE_KEYS = ("logo_path", "icon_path", "loading_image_path")
-ADMIN_FILE_KEYS = ("logo_path", "icon_path")
-ADMIN_TRANSLATIONS_KEY = ("translations", "file")  # nested: translations.file
+# Full image directories to copy (all graphics used by each app)
+IMAGE_DIRS = [
+    "launcherUser/resources/images",
+    "launcherAdmin/resources/images",
+]
+ADMIN_TRANSLATIONS_KEY = ("translations", "file")
 
 
 def find_config(app: str) -> Path | None:
@@ -47,31 +52,37 @@ def copy_configs() -> list[str]:
     return copied
 
 
-def copy_file_from_config(config_path: Path, keys: tuple, nested_key: tuple | None = None) -> list[str]:
-    """If config has a relative path at key(s), copy that file into distribution/ preserving path."""
+def copy_image_dirs() -> list[str]:
+    """Copy full image directories so all graphics (logo, icon, chevron, etc.) are included."""
+    copied = []
+    for rel_dir in IMAGE_DIRS:
+        src_dir = PROJECT_ROOT / rel_dir
+        if not src_dir.is_dir():
+            continue
+        dst_dir = DISTRIBUTION / rel_dir
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for f in src_dir.iterdir():
+            if f.is_file():
+                shutil.copy2(f, dst_dir / f.name)
+                copied.append(str((dst_dir / f.name).relative_to(PROJECT_ROOT)))
+    return copied
+
+
+def copy_file_from_config(config_path: Path, nested_key: tuple) -> list[str]:
+    """Copy a single file path from nested config key (e.g. translations.file) into distribution/."""
     copied = []
     try:
         data = json.loads(config_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return copied
-
-    if nested_key:
-        obj = data
-        for k in nested_key:
-            obj = obj.get(k) if isinstance(obj, dict) else None
-            if obj is None:
-                return copied
-        path_val = obj
-    else:
-        path_val = None
-        for k in keys:
-            if data.get(k):
-                path_val = data[k]
-                break
-
+    obj = data
+    for k in nested_key:
+        obj = obj.get(k) if isinstance(obj, dict) else None
+        if obj is None:
+            return copied
+    path_val = obj if isinstance(obj, str) else None
     if not path_val or os.path.isabs(path_val):
         return copied
-
     src = PROJECT_ROOT / path_val
     if not src.is_file():
         return copied
@@ -101,18 +112,15 @@ def main() -> None:
     # Config files
     all_copied.extend(copy_configs())
 
-    # User config asset paths
-    user_cfg = find_config("user")
-    if user_cfg:
-        all_copied.extend(copy_file_from_config(user_cfg, USER_FILE_KEYS))
+    # All graphics: full image dirs for user and admin
+    all_copied.extend(copy_image_dirs())
 
-    # Admin config asset paths + translations file
+    # Admin translations file (e.g. it.qm) if set in config
     admin_cfg = find_config("admin")
     if admin_cfg:
-        all_copied.extend(copy_file_from_config(admin_cfg, ADMIN_FILE_KEYS))
-        all_copied.extend(copy_file_from_config(admin_cfg, (), ADMIN_TRANSLATIONS_KEY))
+        all_copied.extend(copy_file_from_config(admin_cfg, ADMIN_TRANSLATIONS_KEY))
 
-    # Optional: about.html
+    # about.html
     all_copied.extend(copy_about())
 
     if all_copied:

@@ -44,7 +44,10 @@ class WorkspaceWindow(QMainWindow):
         if icon_path and os.path.isfile(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         else:
-            fallback = "./resources/images/matteinocraft_mc_logo.png"
+            # When frozen, images_dir is next to exe; workspace is opened from selection window which has paths
+            from src.common import paths as common_paths
+            w = common_paths.writable_dir()
+            fallback = os.path.join(w, "launcherAdmin", "resources", "images", "matteinocraft_mc_logo.png")
             if os.path.isfile(fallback):
                 self.setWindowIcon(QIcon(fallback))
 

@@ -27,21 +27,17 @@ class WorkspaceSelectionWindow(QMainWindow):
         self.paths = paths or {}
         self._workspaces_file = self.paths.get("workspaces_file", os.path.join(os.getcwd(), "resources", "workspaces.json"))
         images_dir = self.paths.get("images_dir", "")
-        if getattr(sys, "frozen", False):
-            project_root = common_paths.writable_dir()
-        else:
-            project_root = os.path.dirname(os.path.dirname(images_dir)) if images_dir else os.getcwd()
 
-        # Resolve icon and logo from config
+        # Resolve icon and logo from config (relative to exe when frozen)
         icon_key = self.config.get("icon_path", "launcherAdmin/resources/images/icon.png")
         logo_key = self.config.get("logo_path", "launcherAdmin/resources/images/logo.png")
         if icon_key and not os.path.isabs(icon_key):
-            icon_candidate = os.path.join(project_root, icon_key)
+            icon_candidate = common_paths.resolve_asset_path(icon_key)
             self._icon_file = icon_candidate if os.path.isfile(icon_candidate) else (os.path.join(images_dir, "matteinocraft_mc_logo.png") if images_dir else None)
         else:
             self._icon_file = icon_key if icon_key and os.path.isfile(icon_key) else (os.path.join(images_dir, "matteinocraft_mc_logo.png") if images_dir else None)
         if logo_key and not os.path.isabs(logo_key):
-            logo_candidate = os.path.join(project_root, logo_key)
+            logo_candidate = common_paths.resolve_asset_path(logo_key)
             self._logo_path = logo_candidate if os.path.isfile(logo_candidate) else (os.path.join(images_dir, "matteinocraft_mc_logo.png") if images_dir else None)
         else:
             self._logo_path = logo_key if logo_key and os.path.isfile(logo_key) else (os.path.join(images_dir, "matteinocraft_mc_logo.png") if images_dir else None)
@@ -69,8 +65,8 @@ class WorkspaceSelectionWindow(QMainWindow):
 
     def setup_ui(self):
         # Load the logo
-        logo_path = self._logo_path or "./resources/images/matteinocraft_mc_logo.png"
-        pixmap = QPixmap(logo_path)
+        logo_path = self._logo_path or (os.path.join(self.paths.get("images_dir", ""), "matteinocraft_mc_logo.png") if self.paths.get("images_dir") else None)
+        pixmap = QPixmap(logo_path) if logo_path and os.path.isfile(logo_path) else QPixmap()
 
         if not pixmap.isNull():
             scaled_pixmap = pixmap.scaledToWidth(200)  # Scale width as needed
