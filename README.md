@@ -54,6 +54,7 @@ Version is defined in `src/common/version.py` and used by both apps.
 
 - Default config: `config/defaults/user.default.json` and `admin.default.json`.
 - Local overrides and secrets (e.g. `*.local.json`, `config/local/`, `.env`) are not committed; see `.gitignore`.
+- **User launcher – optional server status:** In `user.config.json` you can set `server_status.enabled: true` and `server_status.servers` to a list of `{ "name": "Display Name", "host": "hostname", "port": 25565 }`. The launcher will show a small preview of each server (online/offline and player count), refreshed on a configurable interval (`refresh_interval_seconds`).
 
 ## Building distributable releases
 

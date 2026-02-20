@@ -1,5 +1,7 @@
 # windows/main_window.py
 
+import base64
+import html
 import hashlib
 import os
 import json
@@ -16,10 +18,10 @@ from minecraft_launcher_lib.command import get_minecraft_command
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QLabel, QPushButton,
-    QVBoxLayout, QHBoxLayout, QComboBox
+    QVBoxLayout, QHBoxLayout, QComboBox, QGridLayout
 )
-from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize
+from PyQt6.QtGui import QPixmap, QIcon, QColor, QPainter
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize, QTimer
 
 from widgets.account_selector import AccountSelectorDialog
 from src.common.about_dialog import AboutDialog
@@ -34,6 +36,8 @@ from src.common import paths as common_paths
 from utils.base_stylesheet import getBaseStylesheet, set_images_dir
 from workers.player_render_worker import PlayerRenderWorker
 from workers.bust_render_worker import BustRenderWorker
+from workers.server_status_worker import ServerStatusWorker
+from utils.servers_dat import merge_config_servers
 
 
 class UserLauncher(QMainWindow):
@@ -185,21 +189,94 @@ class UserLauncher(QMainWindow):
         # Add header to main layout
         main_layout.addLayout(header)
 
-        # === MAIN CONTENT PLACEHOLDER ===
+        # === MAIN CONTENT: same row = player render (left) | stretch | server status (right, against window border) ===
         center = QHBoxLayout()
         center.setContentsMargins(10, 10, 10, 0)
-        center.setAlignment(
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignHCenter)
+        center.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
 
-        # Player render
         center.addWidget(self.player_render_button)
-        # self.player_render_button.setFixedSize(64, 64)
+
+        # Server status table: built here, added on the right of this row (against right border)
+        self.server_status_widget = None
+        self.server_status_rows = []
+        self.server_status_timer = None
+        server_status_cfg = self.config.get("server_status") or {}
+        if server_status_cfg.get("enabled") and server_status_cfg.get("servers"):
+            servers = server_status_cfg["servers"]
+            interval_sec = max(15, int(server_status_cfg.get("refresh_interval_seconds", 60)))
+            default_icon = self._make_default_server_icon(32, 32, online=True)
+            offline_icon = self._make_default_server_icon(32, 32, online=False)
+            self._server_status_default_icon = default_icon
+            self._server_status_offline_icon = offline_icon
+            grid = QGridLayout()
+            grid.setSpacing(8)
+            grid.setContentsMargins(18, 18, 18, 18)
+            grid.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+            cell_align = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+            # Title: spans all columns, centered, with clear padding
+            title = QLabel("Server status")
+            title.setStyleSheet(
+                "background: transparent; border: none; "
+                "color: #aaa; font-size: 12px; font-weight: bold; "
+                "padding: 8px 0 12px 0; margin: 0; "
+                "border-bottom: 1px solid #444;"
+            )
+            title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+            grid.addWidget(title, 0, 0, 1, 4, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+            # Header row: plain text, one visual row (no per-cell boxes)
+            header_style = (
+                "background: transparent; border: none; "
+                "color: #888; font-size: 11px; font-weight: bold; padding: 2px 0;"
+            )
+            grid.addWidget(QLabel(""), 1, 0)
+            grid.addWidget(self._styled_label("Name", header_style, cell_align), 1, 1, alignment=cell_align)
+            grid.addWidget(self._styled_label("Status", header_style, cell_align), 1, 2, alignment=cell_align)
+            grid.addWidget(self._styled_label("Players", header_style, cell_align), 1, 3, alignment=cell_align)
+            row_style = (
+                "background: transparent; border: none; "
+                "color: #ccc; font-size: 12px; padding: 5px 0;"
+            )
+            for row_idx, _ in enumerate(servers):
+                icon_lbl = QLabel()
+                icon_lbl.setFixedSize(32, 32)
+                icon_lbl.setScaledContents(True)
+                icon_lbl.setPixmap(offline_icon)
+                icon_lbl.setStyleSheet("background: transparent; border: none;")
+                name_lbl = QLabel("—")
+                name_lbl.setStyleSheet(row_style)
+                name_lbl.setAlignment(cell_align)
+                status_lbl = QLabel("—")
+                status_lbl.setStyleSheet(row_style)
+                status_lbl.setAlignment(cell_align)
+                players_lbl = QLabel("—")
+                players_lbl.setStyleSheet(row_style)
+                players_lbl.setAlignment(cell_align)
+                grid.addWidget(icon_lbl, row_idx + 2, 0, alignment=Qt.AlignmentFlag.AlignVCenter)
+                grid.addWidget(name_lbl, row_idx + 2, 1, alignment=cell_align)
+                grid.addWidget(status_lbl, row_idx + 2, 2, alignment=cell_align)
+                grid.addWidget(players_lbl, row_idx + 2, 3, alignment=cell_align)
+                self.server_status_rows.append((icon_lbl, name_lbl, status_lbl, players_lbl))
+            # Panel: single card with table inside (no stretch – table at top with padding)
+            self.server_status_widget = QWidget()
+            self.server_status_widget.setObjectName("serverStatusPanel")
+            self.server_status_widget.setLayout(grid)
+            self.server_status_widget.setMaximumWidth(340)
+            self._apply_server_status_panel_style()
+            self._server_status_servers = servers
+            self._server_status_interval = interval_sec
+            self._refresh_server_status()
+            self.server_status_timer = QTimer(self)
+            self.server_status_timer.timeout.connect(self._refresh_server_status)
+            self.server_status_timer.start(interval_sec * 1000)
+
+        center.addStretch()
+        if self.server_status_widget:
+            center.addWidget(self.server_status_widget)
         main_layout.addLayout(center)
 
         # === FOOTER ===
         footer = QHBoxLayout()
 
-        # Launcher version (click to open About / credits and licenses)
         self.version_button = QPushButton(f"Launcher v{LAUNCHER_VERSION}")
         self.version_button.setFlat(True)
         self.version_button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -207,42 +284,188 @@ class UserLauncher(QMainWindow):
         self.version_button.clicked.connect(self.show_about)
         footer.addWidget(self.version_button)
 
-        # Modpack selector
         self.pack_selector = QComboBox()
         self.packages_data = self.update_remote_packs()
-
+        packages_list = self.packages_data.get("packages", [])
         selected_name = self.packages_data.get("selectedPackage", "")
-
-        for i, pack in enumerate(self.packages_data.get("packages", [])):
+        for i, pack in enumerate(packages_list):
             self.pack_selector.addItem(pack["title"], pack["name"])
             if pack["name"] == selected_name:
                 self.pack_selector.setCurrentIndex(i)
-
-        self.pack_selector.currentIndexChanged.connect(
-            self.handle_modpack_change)
-        footer.addWidget(self.pack_selector)
+        self.pack_selector.currentIndexChanged.connect(self.handle_modpack_change)
+        if len(packages_list) == 1:
+            pack_label = QLabel(packages_list[0]["title"])
+            pack_label.setStyleSheet("color: #eee; font-size: 13px; padding: 6px 8px;")
+            footer.addWidget(pack_label)
+        else:
+            footer.addWidget(self.pack_selector)
 
         self.optional_features_button = QPushButton("Optional Features")
-        self.optional_features_button.clicked.connect(
-            self.select_optional_features)
+        self.optional_features_button.clicked.connect(self.select_optional_features)
         footer.addWidget(self.optional_features_button)
 
         footer.addStretch()
 
-        # Buttons
         self.play_button = QPushButton("Play")
         self.play_button.setMinimumWidth(150)
-        self.play_button.setEnabled(bool(self.account_data))  # require logged-in account
+        self.play_button.setEnabled(bool(self.account_data))
         self.play_button.clicked.connect(self.play_clicked)
         self.settings_button = QPushButton("Settings")
         self.settings_button.clicked.connect(self.open_settings_dialog)
-
         footer.addWidget(self.play_button)
         footer.addWidget(self.settings_button)
 
         main_layout.addLayout(footer)
 
         self.apply_material_theme()
+        # Re-apply server status panel style so it isn't overridden by the main window stylesheet
+        if self.server_status_widget:
+            self._apply_server_status_panel_style()
+
+    def _apply_server_status_panel_style(self):
+        """Set card style on server status panel (called after theme so it takes effect)."""
+        self.server_status_widget.setStyleSheet("""
+            QWidget#serverStatusPanel {
+                background-color: #2a2a2a;
+                border: 1px solid #444;
+                border-radius: 8px;
+            }
+            QWidget#serverStatusPanel QLabel {
+                background: transparent;
+                border: none;
+                border-radius: 0;
+            }
+        """)
+
+    def _styled_label(self, text, style_sheet, alignment):
+        lbl = QLabel(text)
+        lbl.setStyleSheet(style_sheet)
+        lbl.setAlignment(alignment)
+        return lbl
+
+    def _motd_to_html(self, motd_str):
+        """Convert Minecraft § color/format codes to HTML for tooltip display."""
+        if not motd_str or not isinstance(motd_str, str):
+            return ""
+        # Minecraft: §0-9a-f = color, §k obfuscated, §l bold, §m strikethrough, §n underline, §o italic, §r reset
+        colors = {
+            "0": "#000000", "1": "#0000aa", "2": "#00aa00", "3": "#00aaaa", "4": "#aa0000",
+            "5": "#aa00aa", "6": "#ffaa00", "7": "#aaaaaa", "8": "#555555", "9": "#5555ff",
+            "a": "#55ff55", "b": "#55ffff", "c": "#ff5555", "d": "#ff55ff", "e": "#ffff55", "f": "#ffffff",
+        }
+        out = []
+        i = 0
+        current = {"color": "#fff", "bold": False, "italic": False, "underline": False, "strike": False}
+        while i < len(motd_str):
+            if motd_str[i] == "§" and i + 1 < len(motd_str):
+                code = motd_str[i + 1].lower()
+                i += 2
+                if code == "r":
+                    current = {"color": "#fff", "bold": False, "italic": False, "underline": False, "strike": False}
+                elif code in colors:
+                    current["color"] = colors[code]
+                elif code == "l":
+                    current["bold"] = True
+                elif code == "o":
+                    current["italic"] = True
+                elif code == "n":
+                    current["underline"] = True
+                elif code == "m":
+                    current["strike"] = True
+                elif code == "k":
+                    pass  # obfuscated: skip or keep as-is
+                continue
+            # Collect run of non-§ characters
+            j = i
+            while j < len(motd_str) and motd_str[j] != "§":
+                j += 1
+            chunk = motd_str[i:j]
+            i = j
+            if not chunk:
+                continue
+            escaped = html.escape(chunk).replace("\n", "<br/>")
+            style = f"color:{current['color']}"
+            if current["bold"]:
+                style += ";font-weight:bold"
+            if current["italic"]:
+                style += ";font-style:italic"
+            if current["underline"]:
+                style += ";text-decoration:underline"
+            if current["strike"]:
+                style += ";text-decoration:line-through"
+            out.append(f'<span style="{style}">{escaped}</span>')
+        return "".join(out) if out else ""
+
+    def _make_default_server_icon(self, w, h, online=True):
+        """Default Minecraft-style server icon when server has no favicon."""
+        pix = QPixmap(w, h)
+        pix.fill(QColor(80, 80, 80) if online else QColor(60, 50, 50))
+        painter = QPainter(pix)
+        painter.setPen(QColor(100, 100, 100))
+        painter.drawRect(0, 0, w - 1, h - 1)
+        if online:
+            painter.fillRect(4, 4, w - 8, h - 8, QColor(90, 120, 90))
+        painter.end()
+        return pix
+
+    def _refresh_server_status(self):
+        if not getattr(self, "_server_status_servers", None) or not self.server_status_rows:
+            return
+        if getattr(self, "_server_status_thread", None) and self._server_status_thread.isRunning():
+            return
+        self._server_status_thread = QThread()
+        self._server_status_worker = ServerStatusWorker(self._server_status_servers)
+        self._server_status_worker.moveToThread(self._server_status_thread)
+        self._server_status_thread.started.connect(self._server_status_worker.run)
+        self._server_status_worker.finished.connect(self._on_server_status_results)
+        self._server_status_worker.finished.connect(self._server_status_thread.quit)
+        self._server_status_worker.error.connect(self._server_status_thread.quit)
+        self._server_status_thread.start()
+
+    def _on_server_status_results(self, results):
+        default_icon = getattr(self, "_server_status_default_icon", None)
+        offline_icon = getattr(self, "_server_status_offline_icon", None)
+        for i, (icon_lbl, name_lbl, status_lbl, players_lbl) in enumerate(self.server_status_rows):
+            if i >= len(results):
+                if offline_icon:
+                    icon_lbl.setPixmap(offline_icon)
+                name_lbl.setText("—")
+                status_lbl.setText("—")
+                players_lbl.setText("—")
+                continue
+            r = results[i]
+            name = r.get("name", "Server")
+            # Icon: server favicon if present, else default
+            favicon_b64 = r.get("favicon_b64")
+            if favicon_b64:
+                try:
+                    data = base64.b64decode(favicon_b64)
+                    pix = QPixmap()
+                    if pix.loadFromData(data):
+                        icon_lbl.setPixmap(pix.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+                    else:
+                        icon_lbl.setPixmap(default_icon if r.get("online") else offline_icon)
+                except Exception:
+                    icon_lbl.setPixmap(default_icon if r.get("online") else offline_icon)
+            else:
+                icon_lbl.setPixmap(default_icon if r.get("online") else offline_icon)
+            name_lbl.setText(name)
+            if r.get("online"):
+                status_lbl.setText("● Online")
+                status_lbl.setStyleSheet("background: transparent; border: none; color: #7dd3a0; font-size: 12px;")
+                p_online = r.get("players_online")
+                p_max = r.get("players_max")
+                players_lbl.setText(f"{p_online}/{p_max}" if p_online is not None and p_max is not None else "—")
+                players_lbl.setStyleSheet("background: transparent; border: none; color: #aaa; font-size: 12px;")
+                raw = r.get("description_raw") or r.get("description") or "Online"
+                tip = self._motd_to_html(raw) if raw else "Online"
+                name_lbl.setToolTip(f"<p style='margin:0;'>{tip}</p>" if tip else "Online")
+            else:
+                status_lbl.setText("● Offline")
+                status_lbl.setStyleSheet("background: transparent; border: none; color: #e07c7c; font-size: 12px;")
+                players_lbl.setText("—")
+                players_lbl.setStyleSheet("background: transparent; border: none; color: #aaa; font-size: 12px;")
+                name_lbl.setToolTip(r.get("error", "Offline"))
 
     def load_bust(self, name, selected_uuid, accounts):
         cached_b64 = self.account_data.get("bust_base64")
@@ -531,6 +754,10 @@ class UserLauncher(QMainWindow):
         self.install_thread.start()
 
     def launch_minecraft_after_update(self, version_id, base_dir, options):
+        # Sync launcher config servers into Minecraft server list (servers.dat)
+        server_status_cfg = self.config.get("server_status") or {}
+        if server_status_cfg.get("servers"):
+            merge_config_servers(base_dir, server_status_cfg["servers"])
         # Build command
         command = get_minecraft_command(
             version_id, base_dir, options)
