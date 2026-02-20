@@ -1,15 +1,11 @@
 # Build default Matteino Launcher executables (user + admin) for Linux, Windows, and macOS.
 # Artifacts contain only the executables. Use the distribute script on your machine to add
 # configs, images, and scripts and create a shippable zip/folder.
-# Triggers: push to main, release, or manual run.
+# Runs only when you trigger it manually: Actions → Build release → Run workflow.
 
 name: Build release
 
 on:
-  push:
-    branches: [main]
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
