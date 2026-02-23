@@ -152,21 +152,33 @@ On your machine, use the **distribute script** to combine the downloaded exes wi
 
 See [`distribution/README.md`](distribution/README.md) for what to put in `distribution/`.
 
-## Future enhancements (admin launcher – Mods)
+## Future enhancements
+
+<details>
+<summary><b>🛠️ Admin launcher (click to expand)</b></summary>
+
+### Mods
 
 - **Modify button:** The "Edit" / "Modify" action on each mod entry is currently a placeholder. A possible enhancement is to let the user **change the mod version** (e.g. pick another version compatible with the current Minecraft version and loader). This would require:
   - Loading compatible versions for the mod (Modrinth/CurseForge APIs).
   - Handling **dependencies** (new version may require different or extra mods) and **dependents** (other mods in the pack may depend on this mod and break if the version changes).
   - Clear UI to show what would be added/removed/updated and any compatibility warnings.
 
-## Future enhancements (admin launcher – Server build & deploy)
+### Export
+
+- **Export for other launchers:** In addition to **.mrpack** (Modrinth pack format), the admin launcher could support exporting in formats that modern launchers can import:
+  - **.mrpack** — Modrinth pack format (already supported; importable in Prism Launcher, Modrinth app, and others).
+  - **CurseForge-style zip** — A zip containing `manifest.json` (and optionally an `overrides/` folder), the format used by CurseForge and importable in Prism Launcher, Overwolf/CurseForge app, ATLauncher, GDLauncher, and similar clients.
+  - Other formats (e.g. launcher-specific) could be added so the same pack can be distributed to users on different launchers.
+
+### Server build & deploy
 
 - **Server pack build:** Extend the admin launcher so it can **build a dedicated server variant** of the pack (same custom format as the client: index JSON + files). For example a "server pack" profile that produces a separate release (e.g. excluding client-only mods, including server configs or scripts), so the server host can install/update the pack on a dedicated server from the same distribution pipeline.
 - **Direct deploy to web server:** Allow the admin launcher to **push pack updates** to the web server that hosts `package_base_url` (so the user launcher sees new versions without manual upload). The launcher would push the **release output** (pack index JSON, override files, and updated `packages.json`), not .mrpack. Ideas:
   - A **custom upload endpoint** the admin launcher calls after "Release pack", sending the new index and files (or a signed manifest).
   - **Authentication:** a **private key** or API token in admin config (not committed), used to sign or authenticate uploads; the server verifies it and accepts updates only from the launcher, so updates stay secure and automated.
 
-### Optional: Docker deploy server (structure only)
+#### Optional: Docker deploy server (structure only)
 
 A possible way to host the pack distribution and receive deploys from the admin launcher is a **simple Docker setup** that provides:
 
@@ -185,6 +197,15 @@ deploy-server/          (optional, not in main app repo or in a subdir)
 ```
 
 No implementation yet—this section only describes the **structure and auth model** so that a future Docker-based deploy target and admin "Deploy" button can align with it.
+
+</details>
+
+<details>
+<summary><b>🎮 User launcher (click to expand)</b></summary>
+
+*(No user-launcher-specific enhancements listed yet. Add ideas here as needed.)*
+
+</details>
 
 ## License
 
