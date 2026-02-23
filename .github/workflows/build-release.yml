@@ -33,7 +33,7 @@ jobs:
           cd dist && zip -r ../dist-linux.zip . && cd ..
 
       - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-linux
           path: dist-linux.zip
@@ -63,7 +63,7 @@ jobs:
           Compress-Archive -Path dist\* -DestinationPath dist-windows.zip
 
       - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-windows
           path: dist-windows.zip
@@ -92,7 +92,7 @@ jobs:
           cd dist && zip -r ../dist-macos.zip . && cd ..
 
       - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dist-macos
           path: dist-macos.zip
