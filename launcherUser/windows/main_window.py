@@ -198,78 +198,14 @@ class UserLauncher(QMainWindow):
 
         center.addWidget(self.player_render_button)
 
-        # Server status table: built here, added on the right of this row (against right border)
+        # Server status table: built here or when enabled from Settings
         self.server_status_widget = None
         self.server_status_rows = []
         self.server_status_timer = None
+        self._center_layout = center  # keep reference so we can add panel when enabling from Settings
         server_status_cfg = self.config.get("server_status") or {}
         if server_status_cfg.get("enabled") and server_status_cfg.get("servers"):
-            servers = server_status_cfg["servers"]
-            interval_sec = max(15, int(server_status_cfg.get("refresh_interval_seconds", 60)))
-            default_icon = self._make_default_server_icon(32, 32, online=True)
-            offline_icon = self._make_default_server_icon(32, 32, online=False)
-            self._server_status_default_icon = default_icon
-            self._server_status_offline_icon = offline_icon
-            grid = QGridLayout()
-            grid.setSpacing(8)
-            grid.setContentsMargins(18, 18, 18, 18)
-            grid.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
-            cell_align = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
-            # Title: spans all columns, centered, with clear padding
-            title = QLabel(self.tr("Server status"))
-            title.setStyleSheet(
-                "background: transparent; border: none; "
-                "color: #aaa; font-size: 12px; font-weight: bold; "
-                "padding: 8px 0 12px 0; margin: 0; "
-                "border-bottom: 1px solid #444;"
-            )
-            title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-            grid.addWidget(title, 0, 0, 1, 4, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
-            # Header row: plain text, one visual row (no per-cell boxes)
-            header_style = (
-                "background: transparent; border: none; "
-                "color: #888; font-size: 11px; font-weight: bold; padding: 2px 0;"
-            )
-            grid.addWidget(QLabel(""), 1, 0)
-            grid.addWidget(self._styled_label(self.tr("Name"), header_style, cell_align), 1, 1, alignment=cell_align)
-            grid.addWidget(self._styled_label(self.tr("Status"), header_style, cell_align), 1, 2, alignment=cell_align)
-            grid.addWidget(self._styled_label(self.tr("Players"), header_style, cell_align), 1, 3, alignment=cell_align)
-            row_style = (
-                "background: transparent; border: none; "
-                "color: #ccc; font-size: 12px; padding: 5px 0;"
-            )
-            for row_idx, _ in enumerate(servers):
-                icon_lbl = QLabel()
-                icon_lbl.setFixedSize(32, 32)
-                icon_lbl.setScaledContents(True)
-                icon_lbl.setPixmap(offline_icon)
-                icon_lbl.setStyleSheet("background: transparent; border: none;")
-                name_lbl = QLabel(self.tr("—"))
-                name_lbl.setStyleSheet(row_style)
-                name_lbl.setAlignment(cell_align)
-                status_lbl = QLabel(self.tr("—"))
-                status_lbl.setStyleSheet(row_style)
-                status_lbl.setAlignment(cell_align)
-                players_lbl = QLabel(self.tr("—"))
-                players_lbl.setStyleSheet(row_style)
-                players_lbl.setAlignment(cell_align)
-                grid.addWidget(icon_lbl, row_idx + 2, 0, alignment=Qt.AlignmentFlag.AlignVCenter)
-                grid.addWidget(name_lbl, row_idx + 2, 1, alignment=cell_align)
-                grid.addWidget(status_lbl, row_idx + 2, 2, alignment=cell_align)
-                grid.addWidget(players_lbl, row_idx + 2, 3, alignment=cell_align)
-                self.server_status_rows.append((icon_lbl, name_lbl, status_lbl, players_lbl))
-            # Panel: single card with table inside (no stretch – table at top with padding)
-            self.server_status_widget = QWidget()
-            self.server_status_widget.setObjectName("serverStatusPanel")
-            self.server_status_widget.setLayout(grid)
-            self.server_status_widget.setMaximumWidth(340)
-            self._apply_server_status_panel_style()
-            self._server_status_servers = servers
-            self._server_status_interval = interval_sec
-            self._refresh_server_status()
-            self.server_status_timer = QTimer(self)
-            self.server_status_timer.timeout.connect(self._refresh_server_status)
-            self.server_status_timer.start(interval_sec * 1000)
+            self._build_server_status_panel(center, server_status_cfg)
 
         center.addStretch()
         if self.server_status_widget:
@@ -338,6 +274,101 @@ class UserLauncher(QMainWindow):
                 border-radius: 0;
             }
         """)
+
+    def _build_server_status_panel(self, center_layout, server_status_cfg):
+        """Build the server status widget and add it to center_layout. Starts refresh timer."""
+        servers = server_status_cfg.get("servers") or []
+        if not servers:
+            return
+        interval_sec = max(15, int(server_status_cfg.get("refresh_interval_seconds", 60)))
+        default_icon = self._make_default_server_icon(32, 32, online=True)
+        offline_icon = self._make_default_server_icon(32, 32, online=False)
+        self._server_status_default_icon = default_icon
+        self._server_status_offline_icon = offline_icon
+        self.server_status_rows = []
+        grid = QGridLayout()
+        grid.setSpacing(8)
+        grid.setContentsMargins(18, 18, 18, 18)
+        grid.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
+        cell_align = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        title = QLabel(self.tr("Server status"))
+        title.setStyleSheet(
+            "background: transparent; border: none; "
+            "color: #aaa; font-size: 12px; font-weight: bold; "
+            "padding: 8px 0 12px 0; margin: 0; "
+            "border-bottom: 1px solid #444;"
+        )
+        title.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        grid.addWidget(title, 0, 0, 1, 4, alignment=Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter)
+        header_style = (
+            "background: transparent; border: none; "
+            "color: #888; font-size: 11px; font-weight: bold; padding: 2px 0;"
+        )
+        grid.addWidget(QLabel(""), 1, 0)
+        grid.addWidget(self._styled_label(self.tr("Name"), header_style, cell_align), 1, 1, alignment=cell_align)
+        grid.addWidget(self._styled_label(self.tr("Status"), header_style, cell_align), 1, 2, alignment=cell_align)
+        grid.addWidget(self._styled_label(self.tr("Players"), header_style, cell_align), 1, 3, alignment=cell_align)
+        row_style = (
+            "background: transparent; border: none; "
+            "color: #ccc; font-size: 12px; padding: 5px 0;"
+        )
+        for row_idx, _ in enumerate(servers):
+            icon_lbl = QLabel()
+            icon_lbl.setFixedSize(32, 32)
+            icon_lbl.setScaledContents(True)
+            icon_lbl.setPixmap(offline_icon)
+            icon_lbl.setStyleSheet("background: transparent; border: none;")
+            name_lbl = QLabel(self.tr("—"))
+            name_lbl.setStyleSheet(row_style)
+            name_lbl.setAlignment(cell_align)
+            status_lbl = QLabel(self.tr("—"))
+            status_lbl.setStyleSheet(row_style)
+            status_lbl.setAlignment(cell_align)
+            players_lbl = QLabel(self.tr("—"))
+            players_lbl.setStyleSheet(row_style)
+            players_lbl.setAlignment(cell_align)
+            grid.addWidget(icon_lbl, row_idx + 2, 0, alignment=Qt.AlignmentFlag.AlignVCenter)
+            grid.addWidget(name_lbl, row_idx + 2, 1, alignment=cell_align)
+            grid.addWidget(status_lbl, row_idx + 2, 2, alignment=cell_align)
+            grid.addWidget(players_lbl, row_idx + 2, 3, alignment=cell_align)
+            self.server_status_rows.append((icon_lbl, name_lbl, status_lbl, players_lbl))
+        self.server_status_widget = QWidget()
+        self.server_status_widget.setObjectName("serverStatusPanel")
+        self.server_status_widget.setLayout(grid)
+        self.server_status_widget.setMaximumWidth(340)
+        self._apply_server_status_panel_style()
+        self._server_status_servers = servers
+        self._server_status_interval = interval_sec
+        self._refresh_server_status()
+        if self.server_status_timer:
+            self.server_status_timer.stop()
+            self.server_status_timer.deleteLater()
+        self.server_status_timer = QTimer(self)
+        self.server_status_timer.timeout.connect(self._refresh_server_status)
+        self.server_status_timer.start(interval_sec * 1000)
+        # Caller adds widget to layout (after stretch) for correct order
+
+    def _apply_server_status_visibility(self):
+        """Apply server_status config: show/hide panel and update timer. Call after config reload (e.g. Settings closed)."""
+        server_status_cfg = self.config.get("server_status") or {}
+        enabled = bool(server_status_cfg.get("enabled")) and bool(server_status_cfg.get("servers"))
+        if enabled:
+            if self.server_status_widget is None and getattr(self, "_center_layout", None):
+                self._build_server_status_panel(self._center_layout, server_status_cfg)
+                self._center_layout.addWidget(self.server_status_widget)
+            elif self.server_status_widget:
+                self.server_status_widget.setVisible(True)
+                interval_sec = max(15, int(server_status_cfg.get("refresh_interval_seconds", 60)))
+                if getattr(self, "_server_status_interval") != interval_sec:
+                    self._server_status_interval = interval_sec
+                    if self.server_status_timer:
+                        self.server_status_timer.stop()
+                        self.server_status_timer.start(interval_sec * 1000)
+        else:
+            if self.server_status_widget:
+                self.server_status_widget.setVisible(False)
+            if self.server_status_timer:
+                self.server_status_timer.stop()
 
     def _styled_label(self, text, style_sheet, alignment):
         lbl = QLabel(text)
@@ -803,6 +834,7 @@ class UserLauncher(QMainWindow):
         def on_save_config(override):
             common_config.save_user_config("user", override)
             self.config = common_config.load_config("user")
+            self._apply_server_status_visibility()
 
         def on_save_translations_and_restart(trans):
             common_config.save_user_config("user", {"translations": trans})
