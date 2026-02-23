@@ -105,6 +105,104 @@ Minecraft chiuso.</translation>
     </message>
 </context>
 <context>
+    <name>ModSearchDialog</name>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="24"/>
+        <source>Search mods</source>
+        <translation>Cerca mod</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="37"/>
+        <source>Search by name or description...</source>
+        <translation>Cerca per nome o descrizione...</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="43"/>
+        <source>Modrinth</source>
+        <translation>Modrinth</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="44"/>
+        <source>CurseForge</source>
+        <translation>CurseForge</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="45"/>
+        <source>Both</source>
+        <translation>Entrambi</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="46"/>
+        <source>Provider:</source>
+        <translation>Provider:</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="49"/>
+        <source>Search</source>
+        <translation>Cerca</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="61"/>
+        <source>Filters: {filters}</source>
+        <translation>Filtri: {filters}</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="66"/>
+        <source>Results:</source>
+        <translation>Risultati:</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="83"/>
+        <source>Enter a search term.</source>
+        <translation>Inserisci un termine di ricerca.</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="86"/>
+        <source>Searching...</source>
+        <translation>Ricerca in corso...</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="113"/>
+        <source>No results.</source>
+        <translation>Nessun risultato.</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="115"/>
+        <source>{n} result(s).</source>
+        <translation>{n} risultato/i.</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="162"/>
+        <source>Add to pack</source>
+        <translation>Aggiungi al pack</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="172"/>
+        <source>Added '{title}'. Add more or close.</source>
+        <translation>Aggiunto '{title}'. Aggiungine altre o chiudi.</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="97"/>
+        <source>Previous</source>
+        <translation>Precedente</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="101"/>
+        <source>Next</source>
+        <translation>Successivo</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="118"/>
+        <source>Page {page} of {total}</source>
+        <translation>Pagina {page} di {total}</translation>
+    </message>
+    <message>
+        <location filename="../widgets/mod_search_dialog.py" line="178"/>
+        <source>Go to page</source>
+        <translation>Vai alla pagina</translation>
+    </message>
+</context>
+<context>
     <name>WorkspaceSelectionWindow</name>
     <message>
         <location filename="../windows/workspace_selection_window.py" line="27"/>
@@ -360,6 +458,61 @@ Unsaved changes will be lost.</source>
         <location filename="../windows/workspace_window.py" line="628"/>
         <source>Add mod</source>
         <translation>Aggiungi mod</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="770"/>
+        <source>Paste Modrinth or CurseForge mod URL...</source>
+        <translation>Incolla URL mod Modrinth o CurseForge...</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="791"/>
+        <source>Filter:</source>
+        <translation>Filtra:</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="794"/>
+        <source>Filter by name or description...</source>
+        <translation>Filtra per nome o descrizione...</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="801"/>
+        <source>Sort by:</source>
+        <translation>Ordina per:</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="803"/>
+        <source>Name (A–Z)</source>
+        <translation>Nome (A–Z)</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="804"/>
+        <source>Name (Z–A)</source>
+        <translation>Nome (Z–A)</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="805"/>
+        <source>Source (Modrinth first)</source>
+        <translation>Fonte (Modrinth prima)</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="806"/>
+        <source>Source (CurseForge first)</source>
+        <translation>Fonte (CurseForge prima)</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="807"/>
+        <source>Project ID (A–Z)</source>
+        <translation>ID progetto (A–Z)</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="808"/>
+        <source>Project ID (Z–A)</source>
+        <translation>ID progetto (Z–A)</translation>
+    </message>
+    <message>
+        <location filename="../windows/workspace_window.py" line="772"/>
+        <source>Search mods</source>
+        <translation>Cerca mod</translation>
     </message>
     <message>
         <location filename="../windows/workspace_window.py" line="630"/>

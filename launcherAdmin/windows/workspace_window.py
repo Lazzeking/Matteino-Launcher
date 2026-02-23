@@ -31,6 +31,7 @@ from widgets.mod_entry_widget import ModEntryWidget
 from workers.versions_loader_worker import VersionsLoaderWorker
 from widgets.dependency_selection_dialog import DependencySelectionDialog
 from widgets.log_window import LogWindow
+from widgets.mod_search_dialog import ModSearchDialog
 from widgets.optional_feature_dialog import OptionalFeatureDialog
 from workers.bulk_import_worker import BulkImportWorker
 from workers.install_worker import MrPackInstaller
@@ -764,10 +765,15 @@ class WorkspaceWindow(QMainWindow):
         # Add mod via URL
         add_mod_layout = QHBoxLayout()
         self.add_mod_url = QLineEdit()
+        self.add_mod_url.setPlaceholderText(
+            self.tr("Paste Modrinth or CurseForge mod URL...")
+        )
         self.add_mod_button = QPushButton(self.tr("Add mod"))
         self.add_mod_button.clicked.connect(self.handle_add_mod)
         self.add_mod_bulk_button = QPushButton(self.tr("Add mods..."))
         self.add_mod_bulk_button.clicked.connect(self.handle_add_mod_bulk)
+        self.search_mods_button = QPushButton(self.tr("Search mods"))
+        self.search_mods_button.clicked.connect(self.open_mod_search_dialog)
         self.check_deps_button = QPushButton(self.tr("Check dependencies"))
         self.check_deps_button.clicked.connect(self.handle_check_dependencies)
         self.mod_count_label = QLabel(self.tr("Mods: {n}").format(n=0))
@@ -775,10 +781,33 @@ class WorkspaceWindow(QMainWindow):
         add_mod_layout.addWidget(self.add_mod_url)
         add_mod_layout.addWidget(self.add_mod_button)
         add_mod_layout.addWidget(self.add_mod_bulk_button)
+        add_mod_layout.addWidget(self.search_mods_button)
         add_mod_layout.addWidget(self.check_deps_button)
         add_mod_layout.addWidget(self.mod_count_label)
 
         layout.addLayout(add_mod_layout)
+
+        # Filter and sort installed mods
+        filter_sort_row = QHBoxLayout()
+        filter_sort_row.addWidget(QLabel(self.tr("Filter:")))
+        self.mod_filter_input = QLineEdit()
+        self.mod_filter_input.setPlaceholderText(
+            self.tr("Filter by name or description...")
+        )
+        self.mod_filter_input.textChanged.connect(self._apply_mod_list_filter)
+        filter_sort_row.addWidget(self.mod_filter_input)
+        filter_sort_row.addWidget(QLabel(self.tr("Sort by:")))
+        self.mod_sort_combo = QComboBox()
+        self.mod_sort_combo.addItem(self.tr("Name (A–Z)"), "name_asc")
+        self.mod_sort_combo.addItem(self.tr("Name (Z–A)"), "name_desc")
+        self.mod_sort_combo.addItem(self.tr("Source (Modrinth first)"), "source_modrinth")
+        self.mod_sort_combo.addItem(self.tr("Source (CurseForge first)"), "source_curseforge")
+        self.mod_sort_combo.addItem(self.tr("Project ID (A–Z)"), "project_asc")
+        self.mod_sort_combo.addItem(self.tr("Project ID (Z–A)"), "project_desc")
+        self.mod_sort_combo.currentIndexChanged.connect(self._reorder_mod_list)
+        filter_sort_row.addWidget(self.mod_sort_combo)
+        filter_sort_row.addStretch()
+        layout.addLayout(filter_sort_row)
 
         # Scrollable mod list
         self.scroll_area = QScrollArea()
@@ -787,6 +816,7 @@ class WorkspaceWindow(QMainWindow):
         self.mod_list_widget = QWidget()
         self.mod_list_layout = QVBoxLayout()
         self.mod_list_widget.setLayout(self.mod_list_layout)
+        self._mod_entry_widgets = []  # refs for filtering
 
         self.scroll_area.setWidget(self.mod_list_widget)
         layout.addWidget(self.scroll_area)
@@ -1405,6 +1435,30 @@ class WorkspaceWindow(QMainWindow):
             return
         self.start_bulk_import(file_path)
 
+    def open_mod_search_dialog(self):
+        """Open the search mods modal (Modrinth / CurseForge) and add selected mods to the pack."""
+        deps = self.current_pack_data.get("dependencies", {})
+        mc_version, modrinth_loader = self._get_pack_modrinth_loader(deps)
+        curseforge_key = (self.config.get("curseforge_api_key") or "").strip()
+
+        def on_add_mod(hit: dict):
+            url = hit.get("url", "")
+            if hit.get("provider") == "modrinth":
+                self.handle_modrinth_url(url)
+            elif hit.get("provider") == "curseforge":
+                self.handle_curseforge_url(url)
+            self.render_mod_list()
+
+        dialog = ModSearchDialog(
+            parent=self,
+            game_version=mc_version,
+            loader=modrinth_loader,
+            curseforge_api_key=curseforge_key,
+            on_add_mod=on_add_mod,
+        )
+        dialog.setWindowFlag(Qt.WindowType.Window, True)
+        dialog.exec()
+
     def handle_add_mod(self):
         url = self.add_mod_url.text().strip()
         if not url:
@@ -1897,8 +1951,65 @@ class WorkspaceWindow(QMainWindow):
             else:
                 print(f"[Bulk] CurseForge error: {e}")
 
+    def _apply_mod_list_filter(self):
+        """Show only mod entries whose name or description matches the filter text."""
+        q = (getattr(self, "mod_filter_input", None) and self.mod_filter_input.text() or "").strip().lower()
+        for w in getattr(self, "_mod_entry_widgets", []):
+            if not q:
+                w.setVisible(True)
+                continue
+            data = getattr(w, "mod_data", {}) or {}
+            title = (data.get("title") or "").lower()
+            desc = (data.get("description") or "").lower()
+            w.setVisible(q in title or q in desc)
+
+    def _mod_sort_key(self, widget):
+        """Return a sort key tuple for the given mod entry widget (by current sort combo)."""
+        data = getattr(widget, "mod_data", {}) or {}
+        sort_id = getattr(self, "mod_sort_combo", None) and self.mod_sort_combo.currentData() or "name_asc"
+        title = (data.get("title") or "").lower()
+        project_id = (data.get("project_id") or "").lower()
+        url = data.get("url") or ""
+        if "modrinth.com" in url:
+            source_order = 0
+        elif "curseforge.com" in url or "forgecdn.net" in "".join(data.get("downloads", [])):
+            source_order = 1
+        else:
+            source_order = 2
+        if sort_id == "name_asc":
+            return (title,)
+        if sort_id == "name_desc":
+            return (title,)
+        if sort_id == "source_modrinth":
+            return (source_order, title)
+        if sort_id == "source_curseforge":
+            return (1 - source_order, title)  # CurseForge first
+        if sort_id == "project_asc":
+            return (project_id, title)
+        if sort_id == "project_desc":
+            return (project_id, title)
+        return (title,)
+
+    def _reorder_mod_list(self):
+        """Reorder the mod list by the current sort combo; keeps existing widgets."""
+        widgets = getattr(self, "_mod_entry_widgets", [])
+        if not widgets:
+            return
+        sort_id = getattr(self, "mod_sort_combo", None) and self.mod_sort_combo.currentData() or "name_asc"
+        reverse = sort_id in ("name_desc", "project_desc")
+        widgets.sort(key=self._mod_sort_key)
+        if reverse:
+            widgets.reverse()
+        # Remove all items from layout (widgets stay alive)
+        while self.mod_list_layout.count():
+            item = self.mod_list_layout.takeAt(0)
+        for w in widgets:
+            self.mod_list_layout.addWidget(w)
+        self.mod_list_layout.addStretch()
+
     def render_mod_list(self):
         # Clear all items from layout — widgets and spacers
+        self._mod_entry_widgets = []
         while self.mod_list_layout.count():
             item = self.mod_list_layout.takeAt(0)
             widget = item.widget()
@@ -1907,7 +2018,7 @@ class WorkspaceWindow(QMainWindow):
 
         # Rebuild the mod list (icons loaded async, cached under workspace .launcher_cache/icons)
         mods = self.current_pack_data.get("files", [])
-        self.mod_count_label.setText(f"Mods: {len(mods)}")
+        self.mod_count_label.setText(self.tr("Mods: {n}").format(n=len(mods)))
         icon_cache_dir = os.path.join(self.workspace_path, ".launcher_cache", "icons")
         for mod in mods:
             widget = ModEntryWidget(
@@ -1917,9 +2028,12 @@ class WorkspaceWindow(QMainWindow):
                 icon_cache_dir=icon_cache_dir,
                 icon_thread_registry=self,
             )
+            self._mod_entry_widgets.append(widget)
             self.mod_list_layout.addWidget(widget)
 
         self.mod_list_layout.addStretch()
+        self._reorder_mod_list()
+        self._apply_mod_list_filter()
 
     def load_loaders(self):
         # Prefer NeoForge over Forge (mod_loader 8+)

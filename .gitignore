@@ -39,6 +39,7 @@ Thumbs.db
 
 # Launcher runtime cache (icons, etc.)
 .launcher_cache/
+launcherAdmin/cache/
 
 # Launcher runtime (accounts, packages, logs, downloaded packs)
 logs/

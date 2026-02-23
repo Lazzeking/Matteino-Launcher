@@ -99,6 +99,13 @@ On your machine, use the **distribute script** to combine the downloaded exes wi
 
 See [`distribution/README.md`](distribution/README.md) for what to put in `distribution/`.
 
+## Future enhancements (admin launcher – Mods)
+
+- **Modify button:** The "Edit" / "Modify" action on each mod entry is currently a placeholder. A possible enhancement is to let the user **change the mod version** (e.g. pick another version compatible with the current Minecraft version and loader). This would require:
+  - Loading compatible versions for the mod (Modrinth/CurseForge APIs).
+  - Handling **dependencies** (new version may require different or extra mods) and **dependents** (other mods in the pack may depend on this mod and break if the version changes).
+  - Clear UI to show what would be added/removed/updated and any compatibility warnings.
+
 ## License
 
 GNU General Public License v3.0. See [LICENSE](LICENSE) and [resources/about.html](resources/about.html) for details and third-party credits.
