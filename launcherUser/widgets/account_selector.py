@@ -15,7 +15,7 @@ from utils.base_dialog import BaseDialog
 class AccountSelectorDialog(BaseDialog):
     def __init__(self, accounts, accounts_file_path, parent=None, icon_path=None):
         super().__init__(parent, icon_path=icon_path)
-        self.setWindowTitle("Select Account")
+        self.setWindowTitle(self.tr("Select Account"))
         self.setFixedSize(320, 150)
         self.accounts = accounts
         self.accounts_file_path = accounts_file_path
@@ -27,7 +27,7 @@ class AccountSelectorDialog(BaseDialog):
         self.list_widget.itemDoubleClicked.connect(
             self.handle_item_double_click)
         for uuid, data in self.accounts.get("accounts", {}).items():
-            name = data.get("name", f"Unknown-{uuid}")
+            name = data.get("name", self.tr("Unknown") + "-" + uuid)
             item = QListWidgetItem(name)
             item.setData(Qt.ItemDataRole.UserRole, uuid)
 
@@ -53,15 +53,15 @@ class AccountSelectorDialog(BaseDialog):
         # Action buttons
         button_layout = QHBoxLayout()
 
-        self.select_button = QPushButton("Use Account")
+        self.select_button = QPushButton(self.tr("Use Account"))
         self.select_button.clicked.connect(self.use_account)
         button_layout.addWidget(self.select_button)
 
-        self.remove_button = QPushButton("Remove Account")
+        self.remove_button = QPushButton(self.tr("Remove Account"))
         self.remove_button.clicked.connect(self.remove_selected_account)
         button_layout.addWidget(self.remove_button)
 
-        self.new_login_button = QPushButton("Login New Account")
+        self.new_login_button = QPushButton(self.tr("Login New Account"))
         self.new_login_button.clicked.connect(self.login_new_account)
 
         layout.addLayout(button_layout)
@@ -80,7 +80,7 @@ class AccountSelectorDialog(BaseDialog):
     def populate_accounts(self):
         self.list_widget.clear()
         for uuid, data in self.accounts.get("accounts", {}).items():
-            name = data.get("name", "(Unknown)")
+            name = data.get("name", "(" + self.tr("Unknown") + ")")
             avatar = QPixmap()
 
             if "avatar_base64" in data:
@@ -91,7 +91,7 @@ class AccountSelectorDialog(BaseDialog):
             self.list_widget.addItem(item)
 
         # Add "Login with new account"
-        new_item = QListWidgetItem("Login with new account")
+        new_item = QListWidgetItem(self.tr("Login with new account"))
         new_item.setData(Qt.ItemDataRole.UserRole, "new")
         self.list_widget.addItem(new_item)
 

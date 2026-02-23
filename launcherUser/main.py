@@ -8,6 +8,7 @@ _project_root = os.path.dirname(_this_dir)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+from PyQt6.QtCore import QTranslator
 from PyQt6.QtWidgets import QApplication
 from src.common import config as common_config
 from src.common import paths as common_paths
@@ -17,6 +18,22 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     cfg = common_config.load_config("user")
     paths = common_config.get_user_paths("user")
+
+    # Optional translation from config
+    trans_cfg = cfg.get("translations", {})
+    if trans_cfg.get("enabled"):
+        translator = QTranslator()
+        trans_file = trans_cfg.get("file", "launcherUser/translations/it.qm")
+        if not os.path.isabs(trans_file):
+            if getattr(sys, "frozen", False):
+                next_to_exe = os.path.join(common_paths.writable_dir(), trans_file)
+                trans_file = next_to_exe if os.path.isfile(next_to_exe) else os.path.join(common_paths.base_dir(), trans_file)
+            else:
+                trans_file = os.path.join(_project_root, trans_file)
+        if os.path.isfile(trans_file):
+            translator.load(trans_file)
+            app.installTranslator(translator)
+
     launcher = UserLauncher(config=cfg, paths=paths)
     launcher.show()
     sys.exit(app.exec())

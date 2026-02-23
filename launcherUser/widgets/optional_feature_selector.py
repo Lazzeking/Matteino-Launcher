@@ -10,7 +10,7 @@ from utils.base_dialog import BaseDialog
 class OptionalFeatureSelectorDialog(BaseDialog):
     def __init__(self, features, already_selected_features: list = [], parent=None, icon_path=None):
         super().__init__(parent, icon_path=icon_path)
-        self.setWindowTitle("Select Optional Features")
+        self.setWindowTitle(self.tr("Select Optional Features"))
         self.resize(600, 400)
 
         self.features = features
@@ -20,8 +20,9 @@ class OptionalFeatureSelectorDialog(BaseDialog):
 
         self.table = QTableWidget(len(features), 4)
         self.table.horizontalHeader().setStretchLastSection(True)
-        self.table.setHorizontalHeaderLabels(
-            ["Enable", "Name", "Description", "Recommendation"])
+        self.table.setHorizontalHeaderLabels([
+            self.tr("Enable"), self.tr("Name"), self.tr("Description"), self.tr("Recommendation")
+        ])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
 
@@ -56,9 +57,9 @@ class OptionalFeatureSelectorDialog(BaseDialog):
         layout.addWidget(self.table)
 
         btns = QHBoxLayout()
-        ok = QPushButton("OK")
+        ok = QPushButton(self.tr("OK"))
         ok.clicked.connect(self.accept)
-        cancel = QPushButton("Cancel")
+        cancel = QPushButton(self.tr("Cancel"))
         cancel.clicked.connect(self.reject)
         btns.addWidget(ok)
         btns.addWidget(cancel)

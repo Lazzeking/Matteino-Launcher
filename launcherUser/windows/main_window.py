@@ -4,6 +4,7 @@ import base64
 import html
 import hashlib
 import os
+import sys
 import json
 import base64
 import random
@@ -33,6 +34,7 @@ from workers.install_worker import MCModLoaderInstallerWorker
 from widgets.optional_feature_selector import OptionalFeatureSelectorDialog
 from src.common.version import __version__ as LAUNCHER_VERSION
 from src.common import paths as common_paths
+from src.common import config as common_config
 from utils.base_stylesheet import getBaseStylesheet, set_images_dir
 from workers.player_render_worker import PlayerRenderWorker
 from workers.bust_render_worker import BustRenderWorker
@@ -144,7 +146,7 @@ class UserLauncher(QMainWindow):
         if self.account_data:
             self.player_name = self.account_data["name"]
             # Change account button
-            self.change_account_button = QPushButton("Change Account")
+            self.change_account_button = QPushButton(self.tr("Change Account"))
             self.change_account_button.clicked.connect(
                 self.show_account_chooser)
 
@@ -171,12 +173,12 @@ class UserLauncher(QMainWindow):
                 self.change_account_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
         else:
-            self.login_button = QPushButton("Login with Microsoft")
+            self.login_button = QPushButton(self.tr("Login with Microsoft"))
             self.login_button.clicked.connect(self.open_auth_browser)
             right_container.addWidget(
                 self.login_button, alignment=Qt.AlignmentFlag.AlignCenter)
 
-            self.reopen_button = QPushButton("Reopen Login Page")
+            self.reopen_button = QPushButton(self.tr("Reopen Login Page"))
             self.reopen_button.clicked.connect(self.reopen_auth_browser)
             self.reopen_button.setVisible(False)  # Hidden by default
             right_container.addWidget(
@@ -214,7 +216,7 @@ class UserLauncher(QMainWindow):
             grid.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
             cell_align = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
             # Title: spans all columns, centered, with clear padding
-            title = QLabel("Server status")
+            title = QLabel(self.tr("Server status"))
             title.setStyleSheet(
                 "background: transparent; border: none; "
                 "color: #aaa; font-size: 12px; font-weight: bold; "
@@ -229,9 +231,9 @@ class UserLauncher(QMainWindow):
                 "color: #888; font-size: 11px; font-weight: bold; padding: 2px 0;"
             )
             grid.addWidget(QLabel(""), 1, 0)
-            grid.addWidget(self._styled_label("Name", header_style, cell_align), 1, 1, alignment=cell_align)
-            grid.addWidget(self._styled_label("Status", header_style, cell_align), 1, 2, alignment=cell_align)
-            grid.addWidget(self._styled_label("Players", header_style, cell_align), 1, 3, alignment=cell_align)
+            grid.addWidget(self._styled_label(self.tr("Name"), header_style, cell_align), 1, 1, alignment=cell_align)
+            grid.addWidget(self._styled_label(self.tr("Status"), header_style, cell_align), 1, 2, alignment=cell_align)
+            grid.addWidget(self._styled_label(self.tr("Players"), header_style, cell_align), 1, 3, alignment=cell_align)
             row_style = (
                 "background: transparent; border: none; "
                 "color: #ccc; font-size: 12px; padding: 5px 0;"
@@ -242,13 +244,13 @@ class UserLauncher(QMainWindow):
                 icon_lbl.setScaledContents(True)
                 icon_lbl.setPixmap(offline_icon)
                 icon_lbl.setStyleSheet("background: transparent; border: none;")
-                name_lbl = QLabel("—")
+                name_lbl = QLabel(self.tr("—"))
                 name_lbl.setStyleSheet(row_style)
                 name_lbl.setAlignment(cell_align)
-                status_lbl = QLabel("—")
+                status_lbl = QLabel(self.tr("—"))
                 status_lbl.setStyleSheet(row_style)
                 status_lbl.setAlignment(cell_align)
-                players_lbl = QLabel("—")
+                players_lbl = QLabel(self.tr("—"))
                 players_lbl.setStyleSheet(row_style)
                 players_lbl.setAlignment(cell_align)
                 grid.addWidget(icon_lbl, row_idx + 2, 0, alignment=Qt.AlignmentFlag.AlignVCenter)
@@ -277,7 +279,7 @@ class UserLauncher(QMainWindow):
         # === FOOTER ===
         footer = QHBoxLayout()
 
-        self.version_button = QPushButton(f"Launcher v{LAUNCHER_VERSION}")
+        self.version_button = QPushButton(self.tr("Launcher v{0}").format(LAUNCHER_VERSION))
         self.version_button.setFlat(True)
         self.version_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.version_button.setStyleSheet("color: #fff; border: none; background: none; text-align: left;")
@@ -300,17 +302,17 @@ class UserLauncher(QMainWindow):
         else:
             footer.addWidget(self.pack_selector)
 
-        self.optional_features_button = QPushButton("Optional Features")
+        self.optional_features_button = QPushButton(self.tr("Optional Features"))
         self.optional_features_button.clicked.connect(self.select_optional_features)
         footer.addWidget(self.optional_features_button)
 
         footer.addStretch()
 
-        self.play_button = QPushButton("Play")
+        self.play_button = QPushButton(self.tr("Play"))
         self.play_button.setMinimumWidth(150)
         self.play_button.setEnabled(bool(self.account_data))
         self.play_button.clicked.connect(self.play_clicked)
-        self.settings_button = QPushButton("Settings")
+        self.settings_button = QPushButton(self.tr("Settings"))
         self.settings_button.clicked.connect(self.open_settings_dialog)
         footer.addWidget(self.play_button)
         footer.addWidget(self.settings_button)
@@ -429,12 +431,12 @@ class UserLauncher(QMainWindow):
             if i >= len(results):
                 if offline_icon:
                     icon_lbl.setPixmap(offline_icon)
-                name_lbl.setText("—")
-                status_lbl.setText("—")
-                players_lbl.setText("—")
+                name_lbl.setText(self.tr("—"))
+                status_lbl.setText(self.tr("—"))
+                players_lbl.setText(self.tr("—"))
                 continue
             r = results[i]
-            name = r.get("name", "Server")
+            name = r.get("name", self.tr("Server"))
             # Icon: server favicon if present, else default
             favicon_b64 = r.get("favicon_b64")
             if favicon_b64:
@@ -451,21 +453,21 @@ class UserLauncher(QMainWindow):
                 icon_lbl.setPixmap(default_icon if r.get("online") else offline_icon)
             name_lbl.setText(name)
             if r.get("online"):
-                status_lbl.setText("● Online")
+                status_lbl.setText(self.tr("● Online"))
                 status_lbl.setStyleSheet("background: transparent; border: none; color: #7dd3a0; font-size: 12px;")
                 p_online = r.get("players_online")
                 p_max = r.get("players_max")
-                players_lbl.setText(f"{p_online}/{p_max}" if p_online is not None and p_max is not None else "—")
+                players_lbl.setText(f"{p_online}/{p_max}" if p_online is not None and p_max is not None else self.tr("—"))
                 players_lbl.setStyleSheet("background: transparent; border: none; color: #aaa; font-size: 12px;")
-                raw = r.get("description_raw") or r.get("description") or "Online"
-                tip = self._motd_to_html(raw) if raw else "Online"
-                name_lbl.setToolTip(f"<p style='margin:0;'>{tip}</p>" if tip else "Online")
+                raw = r.get("description_raw") or r.get("description") or self.tr("Online")
+                tip = self._motd_to_html(raw) if raw else self.tr("Online")
+                name_lbl.setToolTip(f"<p style='margin:0;'>{tip}</p>" if tip else self.tr("Online"))
             else:
-                status_lbl.setText("● Offline")
+                status_lbl.setText(self.tr("● Offline"))
                 status_lbl.setStyleSheet("background: transparent; border: none; color: #e07c7c; font-size: 12px;")
-                players_lbl.setText("—")
+                players_lbl.setText(self.tr("—"))
                 players_lbl.setStyleSheet("background: transparent; border: none; color: #aaa; font-size: 12px;")
-                name_lbl.setToolTip(r.get("error", "Offline"))
+                name_lbl.setToolTip(self.tr(r.get("error", "Offline")))
 
     def load_bust(self, name, selected_uuid, accounts):
         cached_b64 = self.account_data.get("bust_base64")
@@ -671,7 +673,8 @@ class UserLauncher(QMainWindow):
 
     def launch_game(self, pack_index, base_dir):
         self.on_update_finished(pack_index, base_dir)
-        self.hide()
+        if self.config.get("general", {}).get("close_launcher_on_play", True):
+            self.hide()
         deps = pack_index.get("dependencies", {})
         mc_version = deps.get("minecraft", "").strip()
         # Resolve loader: neoforge (preferred), forge, fabric-loader, quilt
@@ -690,7 +693,7 @@ class UserLauncher(QMainWindow):
                     loader_version = raw
                 break
         if not loader_id or not loader_version or not mc_version:
-            self.log_window.set_status("[ERROR] Pack dependencies must include minecraft and one of: neoforge, forge, fabric-loader, quilt.")
+            self.log_window.set_status(self.tr("[ERROR] Pack dependencies must include minecraft and one of: neoforge, forge, fabric-loader, quilt."))
             return
 
         # Load user account
@@ -718,6 +721,10 @@ class UserLauncher(QMainWindow):
             f"-Xms{min_ram}M",
             f"-Xmx{max_ram}M"
         ] + settings.get("jvm_args", "").split()
+        # Append user config JVM args (Settings → Custom JVM arguments)
+        extra_jvm = (mc_cfg.get("jvm_args") or "").strip()
+        if extra_jvm:
+            jvm_args.extend(extra_jvm.split())
 
         java_path = settings.get("java_path") or mc_cfg.get("java_path")
         if java_path:
@@ -726,7 +733,7 @@ class UserLauncher(QMainWindow):
         options["jvmArguments"] = jvm_args
 
         self.log_window.set_status(
-            "Ensuring Minecraft + mod loader are installed...")
+            self.tr("Ensuring Minecraft + mod loader are installed..."))
 
         self.install_thread = QThread()
         self.install_worker = MCModLoaderInstallerWorker(
@@ -740,7 +747,7 @@ class UserLauncher(QMainWindow):
         self.install_worker.progress_update_max.connect(
             self.log_window.set_max_progress)
         self.install_worker.error.connect(
-            lambda msg: self.log_window.set_status(f"[ERROR] {msg}"))
+            lambda msg: self.log_window.set_status(self.tr("[ERROR] {0}").format(msg)))
 
         def on_install_finished(version_id):
             self.launch_minecraft_after_update(version_id, base_dir, options)
@@ -763,7 +770,7 @@ class UserLauncher(QMainWindow):
             version_id, base_dir, options)
 
         # Launch Minecraft in LogWindow
-        self.log_window.set_status("Launching Minecraft...")
+        self.log_window.set_status(self.tr("Launching Minecraft..."))
         self.log_window.start_process(command[1:])
 
     def handle_modpack_change(self, index):
@@ -793,7 +800,21 @@ class UserLauncher(QMainWindow):
         dialog.exec()
 
     def open_settings_dialog(self):
-        dialog = SettingsDialog(settings_file=self.paths.get("settings_file"), icon_path=self._icon_path)
+        def on_save_config(override):
+            common_config.save_user_config("user", override)
+            self.config = common_config.load_config("user")
+
+        def on_save_translations_and_restart(trans):
+            common_config.save_user_config("user", {"translations": trans})
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+
+        dialog = SettingsDialog(
+            settings_file=self.paths.get("settings_file"),
+            icon_path=self._icon_path,
+            config=self.config,
+            save_minecraft_callback=on_save_config,
+            save_translations_and_restart_callback=on_save_translations_and_restart,
+        )
         dialog.setWindowFlag(Qt.WindowType.Window, True)
         dialog.exec()
 

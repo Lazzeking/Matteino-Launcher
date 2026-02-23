@@ -13,7 +13,7 @@ class AboutDialog(QDialog):
 
     def __init__(self, parent=None, launcher_name: str = "Matteino Launcher", icon_path=None):
         super().__init__(parent)
-        self.setWindowTitle("About")
+        self.setWindowTitle(self.tr("About"))
         self.setMinimumSize(480, 420)
         self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, False)
 
