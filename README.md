@@ -99,6 +99,7 @@ Config and data paths are resolved from the project root; see `launcher_config/d
 - `launcher_config/` — Launcher config: `defaults/` (default JSON), optional overrides `admin.config.json`, `user.config.json`. Do not use `config/` for launcher (reserved for game/pack data if needed).
 - `resources/` — Editable assets (e.g. About text in `about.html`).
 - `screenshots/` — Images for this README (launcher screenshots).
+- `docs/` — Maintenance notes; see [docs/MAINTENANCE.md](docs/MAINTENANCE.md) for keeping **minecraft-launcher-lib** and other dependencies up to date and what to test when upgrading.
 
 Version is defined in `src/common/version.py` and used by both apps.
 
