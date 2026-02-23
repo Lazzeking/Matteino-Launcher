@@ -6,6 +6,15 @@
 
 Open-source modded Minecraft launcher. Two applications share this repository: the **user launcher** (players: install packs, manage accounts, launch the game) and the **admin launcher** (pack authors: manage workspaces, mod lists, and optional features).
 
+## Quick start
+
+- **Requirements:** Python 3.10+, and dependencies in `requirements.txt` (PyQt6, minecraft-launcher-lib, requests, psutil).
+- **Run from project root** (after `pip install -r requirements.txt`):
+  - **User launcher:** `python launcherUser/main.py`
+  - **Admin launcher:** `python launcherAdmin/main.py`
+
+Config and data paths are resolved from the project root; see `launcher_config/defaults/` for default settings.
+
 ## Features
 
 ### User launcher (players)
@@ -26,19 +35,61 @@ Open-source modded Minecraft launcher. Two applications share this repository: t
 - **Release pack** — Produce the **server release** (pack index JSON, override files, `packages.json`) that the user launcher consumes. You upload this to your web server so players get updates from `package_base_url`. Optionally **export as `.mrpack`** for Modrinth or for testing (the user launcher does not install from .mrpack).
 - **Translations** — Optional UI translation (e.g. Italian) via config and a `.qm` file.
 
-## Requirements
+## Screenshots
 
-- Python 3.10+
-- Dependencies in `requirements.txt`: PyQt6, minecraft-launcher-lib, requests, psutil
+<details>
+<summary><b>📷 View launcher screenshots (click to expand)</b></summary>
 
-## Running
+### User launcher
 
-From the project root (after `pip install -r requirements.txt`):
+| |
+|:--:|
+| <img src="screenshots/user-launcher-logged.png" alt="User launcher – logged in" width="600" /> |
+| *Main window – logged in, pack selection and play* |
 
-- **User launcher:** `python launcherUser/main.py`
-- **Admin launcher:** `python launcherAdmin/main.py`
+| |
+|:--:|
+| <img src="screenshots/user-launcher-optionalfeatures.png" alt="User launcher – optional features" width="600" /> |
+| *Optional features selection* |
 
-Config and data paths are resolved from the project root when run this way; see `launcher_config/defaults/` for default settings.
+| |
+|:--:|
+| <img src="screenshots/user-launcher-settings.png" alt="User launcher – settings" width="600" /> |
+| *Settings – RAM, Java path* |
+
+### Admin launcher
+
+| |
+|:--:|
+| <img src="screenshots/admin-launcher-main.png" alt="Admin launcher – main" width="600" /> |
+| *Workspace selection / main* |
+
+| |
+|:--:|
+| <img src="screenshots/admin-launcher-packinfo.png" alt="Admin launcher – pack info" width="600" /> |
+| *Pack info tab* |
+
+| |
+|:--:|
+| <img src="screenshots/admin-launcher-mods.png" alt="Admin launcher – mods" width="600" /> |
+| *Mods tab – mod list* |
+
+| |
+|:--:|
+| <img src="screenshots/admin-launcher-mods-selector.png" alt="Admin launcher – mod search" width="600" /> |
+| *Mod search dialog* |
+
+| |
+|:--:|
+| <img src="screenshots/admin-launcher-optionalfeatures.png" alt="Admin launcher – optional features" width="600" /> |
+| *Optional features tab* |
+
+| |
+|:--:|
+| <img src="screenshots/admin-launcher-optionalfeatures-add.png" alt="Admin launcher – add optional feature" width="600" /> |
+| *Add optional feature dialog* |
+
+</details>
 
 ## Project layout
 
@@ -47,6 +98,7 @@ Config and data paths are resolved from the project root when run this way; see 
 - `src/common/` — Shared code (config, paths, version, about dialog).
 - `launcher_config/` — Launcher config: `defaults/` (default JSON), optional overrides `admin.config.json`, `user.config.json`. Do not use `config/` for launcher (reserved for game/pack data if needed).
 - `resources/` — Editable assets (e.g. About text in `about.html`).
+- `screenshots/` — Images for this README (launcher screenshots).
 
 Version is defined in `src/common/version.py` and used by both apps.
 
@@ -109,9 +161,9 @@ See [`distribution/README.md`](distribution/README.md) for what to put in `distr
 
 ## Future enhancements (admin launcher – Server build & deploy)
 
-- **Server pack build:** Extend the admin launcher so it can **build a dedicated server variant** of the pack (same custom format as the client: index JSON + files). For example a “server pack” profile that produces a separate release (e.g. excluding client-only mods, including server configs or scripts), so the server host can install/update the pack on a dedicated server from the same distribution pipeline.
+- **Server pack build:** Extend the admin launcher so it can **build a dedicated server variant** of the pack (same custom format as the client: index JSON + files). For example a "server pack" profile that produces a separate release (e.g. excluding client-only mods, including server configs or scripts), so the server host can install/update the pack on a dedicated server from the same distribution pipeline.
 - **Direct deploy to web server:** Allow the admin launcher to **push pack updates** to the web server that hosts `package_base_url` (so the user launcher sees new versions without manual upload). The launcher would push the **release output** (pack index JSON, override files, and updated `packages.json`), not .mrpack. Ideas:
-  - A **custom upload endpoint** the admin launcher calls after “Release pack”, sending the new index and files (or a signed manifest).
+  - A **custom upload endpoint** the admin launcher calls after "Release pack", sending the new index and files (or a signed manifest).
   - **Authentication:** a **private key** or API token in admin config (not committed), used to sign or authenticate uploads; the server verifies it and accepts updates only from the launcher, so updates stay secure and automated.
 
 ### Optional: Docker deploy server (structure only)
@@ -132,7 +184,7 @@ deploy-server/          (optional, not in main app repo or in a subdir)
 └── deploy-api/        # minimal app: one endpoint, verify token, unpack/write to volume
 ```
 
-No implementation yet—this section only describes the **structure and auth model** so that a future Docker-based deploy target and admin “Deploy” button can align with it.
+No implementation yet—this section only describes the **structure and auth model** so that a future Docker-based deploy target and admin "Deploy" button can align with it.
 
 ## License
 
