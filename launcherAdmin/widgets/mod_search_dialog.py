@@ -96,7 +96,7 @@ class ResultIconWorker(QObject):
 class ModSearchDialog(QDialog):
     """Search Modrinth and/or CurseForge and add selected mods to the pack."""
 
-    def __init__(self, parent=None, game_version: str = "", loader: str = "", curseforge_api_key: str = "", on_add_mod=None):
+    def __init__(self, parent=None, game_version: str = "", loader: str = "", curseforge_api_key: str = "", on_add_mod=None, installed_mod_ids=None):
         super().__init__(parent)
         self.setWindowTitle(self.tr("Search mods"))
         self.setMinimumSize(640, 500)
@@ -104,6 +104,8 @@ class ModSearchDialog(QDialog):
         self._loader = loader
         self._curseforge_api_key = curseforge_api_key
         self._on_add_mod = on_add_mod
+        # Set of (provider, project_id) for mods already in the pack
+        self._installed_ids = set(installed_mod_ids) if installed_mod_ids else set()
         self._search_thread = None
         self._worker = None
         self._current_page = 0
@@ -257,12 +259,15 @@ class ModSearchDialog(QDialog):
         self._do_search()
 
     def _cache_key(self):
+        return self._cache_key_for_page(self._current_page)
+
+    def _cache_key_for_page(self, page: int):
         provider = self.provider_combo.currentData() or "modrinth"
-        return (self._last_query, provider, self._current_page)
+        return (self._last_query, provider, page)
 
     def _do_search(self):
         provider = self.provider_combo.currentData() or "modrinth"
-        cache_key = (self._last_query, provider, self._current_page)
+        cache_key = self._cache_key()
 
         # Use session cache if we have this page already (instant when switching back)
         if cache_key in self._page_cache:
@@ -323,8 +328,7 @@ class ModSearchDialog(QDialog):
 
     def _on_prefetch_done(self, page: int, hits: list, total: int):
         """Store prefetched page in cache; do not update UI."""
-        provider = self.provider_combo.currentData() or "modrinth"
-        self._page_cache[(self._last_query, provider, page)] = (hits, total)
+        self._page_cache[self._cache_key_for_page(page)] = (hits, total)
 
     def _on_search_error(self, msg: str):
         self.status_label.setText(msg)
@@ -335,8 +339,7 @@ class ModSearchDialog(QDialog):
 
     def _on_results(self, page: int, hits: list, total: int):
         """Called when a search worker finishes. Cache result; update UI only if this is the current page."""
-        provider = self.provider_combo.currentData() or "modrinth"
-        self._page_cache[(self._last_query, provider, page)] = (hits, total)
+        self._page_cache[self._cache_key_for_page(page)] = (hits, total)
 
         # Only update UI if this response is for the page we're showing
         if page != self._current_page:
@@ -361,6 +364,7 @@ class ModSearchDialog(QDialog):
 
         self.page_label.setText(self.tr("Page {page} of {total}").format(page=page + 1, total=max(1, self._total_pages)))
         self.status_label.setText(self.tr("{n} result(s).").format(n=len(hits)))
+        self._current_hits = hits
         for hit in hits:
             self._add_result_row(hit)
 
@@ -442,9 +446,18 @@ class ModSearchDialog(QDialog):
         prov_layout.addStretch()
         grid.addWidget(prov_box, 0, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop)
 
-        add_btn = QPushButton(self.tr("Add to pack"))
-        add_btn.clicked.connect(lambda checked=False, h=hit: self._add_mod(h))
-        grid.addWidget(add_btn, 1, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
+        provider = (hit.get("provider") or "").lower()
+        project_id = str(hit.get("project_id") or "")
+        already_installed = (provider, project_id) in self._installed_ids
+
+        if already_installed:
+            already_lbl = QLabel(self.tr("Already installed"))
+            already_lbl.setStyleSheet("color: #6a6; font-size: 9pt; background: transparent; border: none;")
+            grid.addWidget(already_lbl, 1, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
+        else:
+            add_btn = QPushButton(self.tr("Add to pack"))
+            add_btn.clicked.connect(lambda checked=False, h=hit: self._add_mod(h))
+            grid.addWidget(add_btn, 1, 2, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom)
 
         self.results_layout.addWidget(row)
 
@@ -457,6 +470,13 @@ class ModSearchDialog(QDialog):
     def _add_mod(self, hit: dict):
         if self._on_add_mod:
             self._on_add_mod(hit)
+        provider = (hit.get("provider") or "").lower()
+        project_id = str(hit.get("project_id") or "")
+        self._installed_ids.add((provider, project_id))
+        # Re-render current page so this row shows "Already installed"
+        if getattr(self, "_current_hits", None):
+            self._clear_results()
+            self._apply_results(self._current_page, self._current_hits, self._total_count)
         self.status_label.setText(self.tr("Added '{title}'. Add more or close.").format(title=hit.get("title", "")))
 
     def showEvent(self, event):

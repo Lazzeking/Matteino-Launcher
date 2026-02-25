@@ -1441,6 +1441,19 @@ class WorkspaceWindow(QMainWindow):
         mc_version, modrinth_loader = self._get_pack_modrinth_loader(deps)
         curseforge_key = (self.config.get("curseforge_api_key") or "").strip()
 
+        # Set of (provider, project_id) for mods already in the pack (so search can show "Already installed")
+        installed_ids = set()
+        for mod in self.current_pack_data.get("files", []):
+            pid = mod.get("project_id")
+            if not pid:
+                continue
+            pid = str(pid)
+            url = mod.get("url", "") or ""
+            if "modrinth.com" in url:
+                installed_ids.add(("modrinth", pid))
+            elif "curseforge.com" in url or "forgecdn.net" in "".join(mod.get("downloads", [])):
+                installed_ids.add(("curseforge", pid))
+
         def on_add_mod(hit: dict):
             url = hit.get("url", "")
             if hit.get("provider") == "modrinth":
@@ -1455,6 +1468,7 @@ class WorkspaceWindow(QMainWindow):
             loader=modrinth_loader,
             curseforge_api_key=curseforge_key,
             on_add_mod=on_add_mod,
+            installed_mod_ids=installed_ids,
         )
         dialog.setWindowFlag(Qt.WindowType.Window, True)
         dialog.exec()
@@ -1699,6 +1713,44 @@ class WorkspaceWindow(QMainWindow):
             else:
                 print(f"[Bulk] Modrinth error: {e}")
 
+    def _curseforge_url_for_dep(self, dep: dict) -> str:
+        """Return CurseForge mod page URL for a dependency dict (from API: url/slug, or fallback name as id)."""
+        url = (dep.get("url") or "").strip()
+        if url and "curseforge.com" in url:
+            return url
+        slug = dep.get("slug") or dep.get("name") or ""
+        return f"https://www.curseforge.com/minecraft/mc-mods/{slug}"
+
+    def _curseforge_dep_info_from_mod_id(
+        self, mod_id: int, dep_type: str, headers: dict, api_base: str
+    ) -> dict:
+        """Fetch CurseForge mod by ID and return dep_info with title, slug, url for dialog and adding."""
+        fallback = {
+            "name": str(mod_id),
+            "title": str(mod_id),
+            "slug": "",
+            "url": "",
+            "project_id": str(mod_id),
+            "type": dep_type,
+        }
+        try:
+            r = requests.get(f"{api_base}/mods/{mod_id}", headers=headers, timeout=10)
+            r.raise_for_status()
+            data = r.json().get("data")
+            if not data:
+                return fallback
+            links = data.get("links") or {}
+            return {
+                "name": data.get("slug", str(mod_id)),
+                "title": data.get("name", str(mod_id)),
+                "slug": data.get("slug", ""),
+                "url": links.get("websiteUrl", ""),
+                "project_id": str(data.get("id", mod_id)),
+                "type": dep_type,
+            }
+        except Exception:
+            return fallback
+
     def handle_curseforge_url(self, url: str, already_added: set[str] = None):
         bulk_mode = hasattr(self, "_bulk_dependency_queue")
 
@@ -1799,6 +1851,15 @@ class WorkspaceWindow(QMainWindow):
                 response.raise_for_status()
 
                 results = response.json().get("data", [])
+                if not results and slug.isdigit():
+                    # Slug is numeric (e.g. dependency shown as ID 326652); fetch mod by ID
+                    by_id = requests.get(
+                        f"{CURSEFORGE_API_BASE}/mods/{slug}", headers=headers, timeout=10
+                    )
+                    if by_id.ok:
+                        project = by_id.json().get("data")
+                        if project:
+                            results = [project]
                 if not results:
                     raise ValueError(self.tr("Curseforge mod not found"))
                 project = results[0]
@@ -1820,8 +1881,6 @@ class WorkspaceWindow(QMainWindow):
 
                 latest_file = compatible_files[0]
 
-            print("Early check!")
-
             # === Early check ===
             if str(project_id) in already_added:
                 print(f"Skipping already-added mod: {project_id}")
@@ -1832,8 +1891,6 @@ class WorkspaceWindow(QMainWindow):
             file_url = latest_file["downloadUrl"]
             file_size = latest_file["fileLength"]
             file_hashes = latest_file.get("hashes", [])
-
-            print("Format hashes")
 
             # === Format hashes ===
             hashes = {}
@@ -1860,34 +1917,26 @@ class WorkspaceWindow(QMainWindow):
                 except Exception as e:
                     print(f"Error calculating SHA512: {e}")
 
-            print("Dependencies")
-
             # === Dependencies ===
             required_mods = []
             optional_mods = []
             raw_deps = latest_file.get("dependencies", [])
-            print("for dep in raw_deps")
             for dep in raw_deps:
-                print("inside for")
-                dep_info = {
-                    "name": str(dep["modId"]),
-                    "type": "required" if dep["relationType"] == 3 else "optional",
-                    "project_id": str(dep["modId"])
-                }
+                mod_id = dep["modId"]
+                dep_type = "required" if dep["relationType"] == 3 else "optional"
+                # Fetch mod by ID so we show name (e.g. "Cupboard") and have slug/url for adding
+                dep_info = self._curseforge_dep_info_from_mod_id(
+                    mod_id, dep_type, headers, CURSEFORGE_API_BASE
+                )
                 if dep_info["type"] == "required":
                     required_mods.append(dep_info)
                 else:
                     optional_mods.append(dep_info)
 
-            print("if required_mods or optional_mods")
             if required_mods or optional_mods:
-                print("inside if")
-                print("if bulk_mode")
                 if bulk_mode:
-                    print("Bulk dependency queue extend")
                     self._bulk_dependency_queue.extend(
-                        f"https://www.curseforge.com/minecraft/mc-mods/{dep['name']}"
-                        for dep in required_mods + optional_mods
+                        self._curseforge_url_for_dep(dep) for dep in required_mods + optional_mods
                     )
                 else:
                     dlg = DependencySelectionDialog(
@@ -1901,7 +1950,7 @@ class WorkspaceWindow(QMainWindow):
                     selected_optional_mods = dlg.get_selected_optional_mods()
                     for dep_mod in required_mods + selected_optional_mods:
                         self.handle_curseforge_url(
-                            f"https://www.curseforge.com/minecraft/mc-mods/{dep_mod['name']}",
+                            self._curseforge_url_for_dep(dep_mod),
                             already_added=already_added
                         )
 

@@ -177,6 +177,11 @@ Minecraft chiuso.</translation>
         <translation>Aggiungi al pack</translation>
     </message>
     <message>
+        <location filename="../widgets/mod_search_dialog.py" line="453"/>
+        <source>Already installed</source>
+        <translation>Già installata</translation>
+    </message>
+    <message>
         <location filename="../widgets/mod_search_dialog.py" line="172"/>
         <source>Added '{title}'. Add more or close.</source>
         <translation>Aggiunto '{title}'. Aggiungine altre o chiudi.</translation>

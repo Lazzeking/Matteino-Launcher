@@ -47,3 +47,7 @@ launcherUser/packs/
 launcherUser/resources/accounts.json
 launcherUser/resources/packages.json
 launcherUser/logs/
+
+# Pack testing (game/mod configs and temp build output)
+config/
+.mixin.out/

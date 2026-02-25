@@ -54,6 +54,8 @@ class ModSearchWorker(QObject):
                 except Exception as e:
                     self.error.emit(f"CurseForge: {e}")
 
+        # Re-sort by relevance to query so e.g. "Brutal bosses" appears at top when API order is poor
+        all_hits = self._sort_hits_by_relevance(all_hits, self.query)
         self.finished.emit(self.page, all_hits, total)
 
     def _search_modrinth(self):
@@ -66,7 +68,13 @@ class ModSearchWorker(QObject):
         limit = PAGE_SIZE if self.provider == "modrinth" else (PAGE_SIZE // 2)
         offset = self.page * limit
 
-        params = {"query": self.query, "limit": limit, "offset": offset}
+        # Explicit relevance sort so "Brutal bosses" etc. appear by best match to query
+        params = {
+            "query": self.query,
+            "limit": limit,
+            "offset": offset,
+            "index": "relevance",
+        }
         if facets:
             params["facets"] = json.dumps(facets)
 
@@ -95,7 +103,16 @@ class ModSearchWorker(QObject):
         headers = {"x-api-key": self.curseforge_api_key, "Accept": "application/json"}
         limit = PAGE_SIZE if self.provider == "curseforge" else (PAGE_SIZE // 2)
         index = self.page * limit
-        params = {"gameId": GAME_ID, "searchFilter": self.query, "index": index, "pageSize": limit}
+        # sortField: 0=Featured, 1=Popularity, 2=LastUpdate, 3=Name, 5=TotalDownloads. Omit for API default (often relevance when searchFilter is set).
+        # Narrow by gameVersion when set so results match the pack and relevance can be better.
+        params = {
+            "gameId": GAME_ID,
+            "searchFilter": self.query,
+            "index": index,
+            "pageSize": limit,
+        }
+        if self.game_version:
+            params["gameVersion"] = self.game_version
         r = requests.get(f"{CURSEFORGE_API_BASE}/mods/search", headers=headers, params=params, timeout=15)
         r.raise_for_status()
         data = r.json()
@@ -117,3 +134,25 @@ class ModSearchWorker(QObject):
                 "url": f"https://www.curseforge.com/minecraft/mc-mods/{slug}",
             })
         return out, total_count
+
+    def _sort_hits_by_relevance(self, hits: list, query: str) -> list:
+        """Sort hits so best title match to query comes first (exact/prefix > contains > rest)."""
+        if not query or not hits:
+            return hits
+        q = query.lower().strip()
+
+        def score(h):
+            title = (h.get("title") or "").lower()
+            if title == q:
+                return 0
+            if title.startswith(q):
+                return 1
+            if q in title:
+                return 2
+            # words in query appear in title
+            q_words = [w for w in q.split() if len(w) > 1]
+            if q_words and all(w in title for w in q_words):
+                return 3
+            return 4
+
+        return sorted(hits, key=score)

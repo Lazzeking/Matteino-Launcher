@@ -131,8 +131,12 @@ class ModEntryWidget(QFrame):
 
         # === Host link (row 0, col 2) ===
         host = self.get_host(mod_data)
-        host_label = QLabel(f'<a href="{mod_data["url"]}">{host}</a>')
-        host_label.setOpenExternalLinks(True)
+        url = mod_data.get("url", "") or ""
+        if url:
+            host_label = QLabel(f'<a href="{url}">{host}</a>')
+            host_label.setOpenExternalLinks(True)
+        else:
+            host_label = QLabel(host)
         host_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextBrowserInteraction)
         host_label.setStyleSheet("color: #4da6ff")
@@ -143,8 +147,8 @@ class ModEntryWidget(QFrame):
         if "version_number" in mod_data and mod_data["version_number"]:
             version = mod_data["version_number"]
         else:
-            version = mod_data.get("path", "") or (
-                mod_data.get("downloads", [""])[0]).split("/")[-1]
+            downloads = mod_data.get("downloads") or [""]
+            version = mod_data.get("path", "") or (downloads[0] if downloads else "").split("/")[-1]
         version_label = QLabel(f"Version: {version}")
         version_label.setStyleSheet("font-family: monospace; font-size: 9pt;")
         layout.addWidget(version_label, 1, 1,
