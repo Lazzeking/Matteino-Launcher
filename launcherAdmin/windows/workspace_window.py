@@ -479,22 +479,25 @@ class WorkspaceWindow(QMainWindow):
 
                 full_pattern = os.path.join(
                     self.workspace_path, base_override_folder, pattern)
-                print(f"Checking pattern: {full_pattern}")
-
                 top_level_folder = os.path.normpath(
                     base_override_folder).split(os.sep)[0]
+                base_rel = os.path.join(self.workspace_path, top_level_folder)
+
                 for file_path in glob(full_pattern, recursive=True):
-                    if not os.path.isfile(file_path):
-                        print(f"Not a file: {file_path}")
-                        continue
-
-                    relative_path = os.path.relpath(file_path, os.path.join(
-                        self.workspace_path, top_level_folder))
-                    override_path_in_zip = os.path.join(
-                        "overrides", relative_path)
-
-                    print(f"Adding: {file_path} as {override_path_in_zip}")
-                    zipf.write(file_path, override_path_in_zip)
+                    if os.path.isfile(file_path):
+                        relative_path = os.path.relpath(file_path, base_rel)
+                        override_path_in_zip = os.path.join(
+                            "overrides", relative_path)
+                        zipf.write(file_path, override_path_in_zip)
+                    elif os.path.isdir(file_path):
+                        # Include all files inside the directory (e.g. config/jei/*)
+                        for root, _dirs, filenames in os.walk(file_path):
+                            for name in filenames:
+                                sub_path = os.path.join(root, name)
+                                relative_path = os.path.relpath(sub_path, base_rel)
+                                override_path_in_zip = os.path.join(
+                                    "overrides", relative_path)
+                                zipf.write(sub_path, override_path_in_zip)
 
         # === 3. Salva il file .mrpack ===
         with open(output_path, "wb") as f:
@@ -591,8 +594,9 @@ class WorkspaceWindow(QMainWindow):
                     mrpack_install_options["optionalFiles"].append(i)
 
             # Create log window and show it early
-            # Pass empty args, not launching Java yet
-            self.log_window = LogWindow(parent=self)
+            # Also tee Minecraft output into _testInstance/logs/latest.log
+            log_file_path = os.path.join(modpack_directory, "logs", "latest.log")
+            self.log_window = LogWindow(parent=self, log_file_path=log_file_path)
             self.log_window.canceled.connect(self.cancel_test_process)
             self.log_window.show()
 
@@ -610,9 +614,10 @@ class WorkspaceWindow(QMainWindow):
                 self.log_window.set_max_progress)
 
             self.installer.finished.connect(self.install_thread.quit)
-            self.installer.finished.connect(self.install_thread.deleteLater)
             self.installer.finished.connect(lambda: self.launch_minecraft(
                 minecraft_directory, modpack_directory, mrpack_output))  # Launch after install
+            # Delete thread only after it has actually stopped (avoids "Destroyed while thread still running")
+            self.install_thread.finished.connect(self.install_thread.deleteLater)
             self.install_thread.start()
 
         except Exception as e:
@@ -1775,6 +1780,11 @@ class WorkspaceWindow(QMainWindow):
         try:
             deps = self.current_pack_data.get("dependencies", {})
             mc_version = deps.get("minecraft", "").strip()
+            _mc, modrinth_loader = self._get_pack_modrinth_loader(deps)
+            # CurseForge gameVersions includes loader names: NeoForge, Forge, Fabric, Quilt
+            cf_loader_tag = None
+            if modrinth_loader:
+                cf_loader_tag = {"neoforge": "NeoForge", "forge": "Forge", "fabric": "Fabric", "quilt": "Quilt"}.get(modrinth_loader)
 
             if not mc_version:
                 if not bulk_mode:
@@ -1784,9 +1794,25 @@ class WorkspaceWindow(QMainWindow):
                         self.tr("You need to select a minecraft version first."),
                     )
                 return
+            if not cf_loader_tag:
+                if not bulk_mode:
+                    QMessageBox.warning(
+                        self,
+                        self.tr("Mod loader missing"),
+                        self.tr("You need to select a mod loader (NeoForge, Forge, Fabric, or Quilt) in Pack Info first."),
+                    )
+                return
 
             headers = {"x-api-key": CURSEFORGE_API_KEY,
                        "Accept": "application/json"}
+
+            def _curseforge_files_for_loader(files: list) -> list:
+                """Filter files to those compatible with pack's MC version and loader."""
+                return [
+                    f for f in files
+                    if mc_version in f.get("gameVersions", [])
+                    and cf_loader_tag in f.get("gameVersions", [])
+                ]
 
             # === Case 1: Direct ForgeCDN file link ===
             if "edge.forgecdn.net" in url:
@@ -1821,16 +1847,15 @@ class WorkspaceWindow(QMainWindow):
                 files_resp = requests.get(files_url, headers=headers)
                 files_resp.raise_for_status()
                 all_files = files_resp.json().get("data", [])
-
+                compatible_files = _curseforge_files_for_loader(all_files)
+                if not compatible_files:
+                    raise ValueError(
+                        self.tr("No file compatible with Minecraft {mc_version} and {loader}.").format(
+                            mc_version=mc_version, loader=cf_loader_tag))
                 # Pick matching file (by file name in URL if you want exact match)
                 filename_in_url = parts[6]
-                matching_files = [
-                    f for f in all_files if f["fileName"] == filename_in_url]
-                if not matching_files:
-                    # fallback: first file
-                    latest_file = all_files[0]
-                else:
-                    latest_file = matching_files[0]
+                matching_files = [f for f in compatible_files if f["fileName"] == filename_in_url]
+                latest_file = matching_files[0] if matching_files else compatible_files[0]
 
             # === Case 2: CurseForge mod page ===
             else:
@@ -1871,13 +1896,11 @@ class WorkspaceWindow(QMainWindow):
                 files_resp.raise_for_status()
                 all_files = files_resp.json().get("data", [])
 
-                compatible_files = [
-                    f for f in all_files
-                    if mc_version in f.get("gameVersions", [])
-                ]
+                compatible_files = _curseforge_files_for_loader(all_files)
                 if not compatible_files:
                     raise ValueError(
-                        self.tr("No file compatible with minecraft version {mc_version}."))
+                        self.tr("No file compatible with Minecraft {mc_version} and {loader}. This mod may not support your loader.").format(
+                            mc_version=mc_version, loader=cf_loader_tag))
 
                 latest_file = compatible_files[0]
 
@@ -2116,8 +2139,9 @@ class WorkspaceWindow(QMainWindow):
             pass
 
     def closeEvent(self, event):
-        """Quit versions and icon-fetch threads and wait so we don't destroy them while running."""
+        """Quit versions, install, and icon-fetch threads and wait so we don't destroy them while running."""
         self._closing = True
+        self.cancel_test_process()
         if getattr(self, "_versions_worker", None):
             try:
                 self._versions_worker.finished.disconnect(self._on_versions_loaded)

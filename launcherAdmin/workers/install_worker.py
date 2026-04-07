@@ -41,3 +41,4 @@ class MrPackInstaller(QObject):
             self.finished.emit()
         except Exception as e:
             self.error.emit(str(e))
+            self.finished.emit()  # so the thread can quit and be cleaned up
